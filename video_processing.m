@@ -1,41 +1,42 @@
-function [L,Cmin, Cmax] = video_processing(movie,stp,smp,fname,fname2,pos,posback,thresh1,time_step,decay,gauss,framerate,Cmax,Cmin)
+function [Cmin, Cmax, BN1, BN2, M] = video_processing(movie,stp,smp,BF1,BF2,posfront,framerate,time_step,Cmax,Cmin)
 
 V = VideoWriter(movie);
 V.FrameRate = framerate;
 open(V);
     
-for count = stp:smp
-    count 
-    A1 = imread(fname, count, 'Info', imfinfo(fname)); A1c = imcrop(A1,pos); A1c = A1c ./ exp(decay*time_step*count);    
-    A2 = imread(fname2, count, 'Info', imfinfo(fname2)); A2c = imcrop(A2,pos);
-
-    B1 = imgaussfilt(mat2gray(A1),gauss); B1c = imgaussfilt(mat2gray(A1c),gauss); 
-    B1b = imcrop(B1,posback); B1b(B1b>thresh1) = 0; back1 = sum(sum(B1b))/length(find(B1b>0));
+for count = 1:smp-stp+1
+    count
     
-    B2 = imgaussfilt(mat2gray(A2),gauss); B2c = imgaussfilt(mat2gray(A2c),gauss); 
-    B2b = imcrop(B2,posback); B2b(B2b>thresh1) = 0; back2 = sum(sum(B2b))/length(find(B2b>0));
-    
-    B1c(B1c<thresh1) = 0; B1n = B1c - back1; B1n(B1n<0) = 0;
-    B2c(B2c<thresh1) = 0; B2n = B2c - back2; B2n(B2n<0) = 0;
-    
-    C = B1n./B2n;
+    BN1 = imcrop(BF1(:,:,count),posfront);
+    BN2 = imcrop(BF2(:,:,count),posfront);
+        
+    type = find_orient(BN1);
+    if (type == 1) BN1 = imrotate(BN1,-90); BN2 = imrotate(BN2,-90);
+    elseif (type == 3) BN1 = imrotate(BN1,90); BN2 = imrotate(BN2,90);
+    elseif (type == 4) BN1 = imrotate(BN1,180); BN2 = imrotate(BN2,180);
+    end
+        
+    C = BN1./BN2;
     C(C==Inf) = 0;
     C(isnan(C)) = 0;
     M(:,:,count) = C;
 end
 
 if (Cmax == 0)
-    Cmax = max(M(:));
+    Cmax = max(M(:))
 end
 
 K = M./Cmax;
 K(isnan(K)) = 0;
 
-if (Cmin == 0)    
-    Cmin = min(K(K>min(K)));
+if (Cmin == 0)
+    %     Cmin = min(K(K>min(K)));
+    Ktemp = bsxfun(@gt, K, min(K)); % bsxfun for Matlab versions older than 2016b
+    Cmin = min(K(Ktemp));
 end
 
-L = (K-Cmin)./(1-Cmin);
+% L = (K-Cmin)./(1-Cmin);
+L =  bsxfun(@rdivide, bsxfun(@minus, K, Cmin),bsxfun(@minus, 1, Cmin));
 L(L<0) = 0;
 L = uint8(L.*255);
 

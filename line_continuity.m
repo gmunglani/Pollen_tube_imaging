@@ -8,38 +8,30 @@ else
     poscrossa = poscross2;
 end
 
-distc = horzcat(0,distc);
+if (type == 1) distc = horzcat(0,distc); end
 
-dposcrossa = find(diff(poscrossa) == 0);
+dposcrossa = find(diff(poscrossa) <= 0);
 poscrossa(dposcrossa+1) = [];
 poscrossb(dposcrossa+1) = [];
-distc(dposcrossa+1) = [];
+distc(dposcrossa+1) = []; 
 
-dposcrossao = find(diff(poscrossa) < 0);
-while ~isempty(dposcrossao)
-    for a = 1:length(dposcrossao)
-        if (dposcrossao(a) > 1)
-            posnew1 = round((poscrossa(dposcrossao(a)) + poscrossa(dposcrossao(a)-1)).*0.5);
-            if (posnew1 == poscrossa(dposcrossao(a)) | posnew1 == poscrossa(dposcrossao(a)-1))
-                tmp1 = poscrossa(dposcrossao(a)-1);
-                poscrossa(dposcrossao(a)-1) = poscrossa(dposcrossao(a));
-                poscrossa(dposcrossao(a)) = tmp1;
-            else
-                poscrossa(dposcrossao(a)) = posnew1;
-            end
-        else
-            poscrossa(dposcrossao(a)) = [];
-            poscrossb(dposcrossao(a)) = [];
-            distc(dposcrossao) = [];
-        end
-        poscrossa;
-    end
-    dposcrossa = find(diff(poscrossa) == 0);
-    poscrossa(dposcrossa+1) = [];
-    poscrossb(dposcrossa+1) = [];
-    distc(dposcrossa) = [];
-    dposcrossao = find(diff(poscrossa) < 0);
-end
+% dposcrossao = find(diff(poscrossa) < 0)
+% while ~isempty(dposcrossao)
+%     for a = 1:length(dposcrossao)
+%         if (dposcrossao(a) > 1)
+%             posnew1 = round((poscrossa(dposcrossao(a)+1) + poscrossa(dposcrossao(a)-1))*0.5);
+%             if (posnew1 == poscrossa(dposcrossao(a)+1) | posnew1 == poscrossa(dposcrossao(a)-1))
+%                 tmp1 = poscrossa(dposcrossao(a));
+%                 poscrossa(dposcrossao(a)) = poscrossa(dposcrossao(a)+1);
+%                 poscrossa(dposcrossao(a)+1) = tmp1;
+%             else
+%                 poscrossa(dposcrossao(a)) = posnew1;
+%             end
+%         else
+%             poscrossa(dposcrossao(a)) = poscrossa(dposcrossao(a)+1);
+%         end
+%     end
+%end
 
 if (type == 1)
     poscross1 = poscrossa;
