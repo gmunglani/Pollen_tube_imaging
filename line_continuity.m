@@ -11,9 +11,12 @@ end
 if (type == 1) distc = horzcat(0,distc); end
 
 dposcrossa = find(diff(poscrossa) <= 0);
-poscrossa(dposcrossa+1) = [];
-poscrossb(dposcrossa+1) = [];
-distc(dposcrossa+1) = []; 
+while ~isempty(dposcrossa) 
+    poscrossa(dposcrossa+1) = [];
+    poscrossb(dposcrossa+1) = [];
+    distc(dposcrossa+1) = []; 
+    dposcrossa = find(diff(poscrossa) <= 0);
+end
 
 % dposcrossao = find(diff(poscrossa) < 0)
 % while ~isempty(dposcrossao)
