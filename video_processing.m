@@ -24,7 +24,8 @@ for count = 1:size(L,3)
     text(10,10,txtstr,'color','white')
     hcb = colorbar;
     set(hcb,'YTick',[]);
-    frame = getframe(gcf);
+    drawnow;
+    frame = getframe(gcf)
     set(gca, 'CLim', [0,255]);
     writeVideo(V,frame);
 end

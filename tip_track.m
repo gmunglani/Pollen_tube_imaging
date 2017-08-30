@@ -5,8 +5,8 @@ clear all
 close all
 
 % Image path and input (MAKE SURE YOU HAVE THE RIGHT PATH)
-fname_YFP ='J:\LRX_calcium\Data31_YFP.tif';
-fname_CFP = 'J:\LRX_calcium\Data31_CFP.tif';
+fname_YFP ='~/Documents/MATLAB/Data31_YFP.tif';
+fname_CFP = '~/Documents/MATLAB/Data31_CFP.tif';
 
 % Input parameters
 thresh1 = 0.33; % Threshold value
@@ -15,8 +15,8 @@ analysis = 1; % Turn on analysis mode
 pixelsize = 0.1; % Pixel to um conversion
 gauss = 1.5; % Gauss filter option
 npixel = 6; % Number of pixels difference from start point for straight line fit
-stp = 300; % Start frame number
-smp = 450; % End frame number
+stp = 1; % Start frame number
+smp = 10; % End frame number
 
 % Bleaching options
 decay = -0.0008; % Bleaching decay (single exp decay, between -0.0005 and -0.0008)
@@ -148,7 +148,7 @@ if (analysis == 1)
     plot(1:smp,Mmin,'r*')
     plot(1:smp,Mmin_prc,'rd')
     grid on
-    axis([1 smp 0 max(Mmax)])
+    axis([0 smp 0 max(Mmax)])
     set(gca,'YMinorTick','on')
     
     subplot(2,2,3)
@@ -158,7 +158,7 @@ if (analysis == 1)
     plot(1:smp,B1min,'r*')
     plot(1:smp,B1min_prc,'rd')
     grid on
-    axis([1 smp 0 max(Mmax)])
+    axis([0 smp 0 max(Mmax)])
     set(gca,'YMinorTick','on')
     
     subplot(2,2,4)
@@ -168,7 +168,7 @@ if (analysis == 1)
     plot(1:smp,B2min,'r*')
     plot(1:smp,B2min_prc,'rd')
     grid on
-    axis([1 smp 0 max(Mmax)])
+    axis([0 smp 0 max(Mmax)])
     set(gca,'YMinorTick','on')
     
     save([movie '.mat'],'BT1','BT2','M');
@@ -301,6 +301,11 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
                 total2 = vertcat(total2, total1(end,:));
                 total1(end,:) = [];
             end
+        end
+        
+        if(abs(total1(end,1) - total2(end,1)) < 0.75*diam)
+            total1(find(total1(:,2) >= max(total1(:,2)))) = []; 
+            total2(find(total2(:,2) >= max(total2(:,2)))) = [];  
         end
         
         % Check for straight lines in Y near the tip
