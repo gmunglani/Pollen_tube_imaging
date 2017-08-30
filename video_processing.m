@@ -14,20 +14,24 @@ L = bsxfun(@rdivide, bsxfun(@minus, K, Cmin),bsxfun(@minus, 1, Cmin));
 L(L<0) = 0;
 L = uint8(L.*255);
 
-figure
-map = colormap(jet(255));
-map = vertcat([0 0 0],map);
+%h = figure;
+%figure(h);
 for count = 1:size(L,3)
+    h = figure;
+    figure(h);
+    map = colormap(jet(255));
+    map = vertcat([0 0 0],map);
     disp(['Video Processing:' num2str(count)]);
     imshow(L(:,:,count),map);
     txtstr = strcat('Frame: ',num2str(count*timestep));
     text(10,10,txtstr,'color','white')
     hcb = colorbar;
     set(hcb,'YTick',[]);
-    drawnow;
-    frame = getframe(gcf)
+    %drawnow;
+    frame = getframe(gcf);
     set(gca, 'CLim', [0,255]);
     writeVideo(V,frame);
+    close(h);
 end
 close(V);
 disp(['Cmax:' num2str(Cmax)]);

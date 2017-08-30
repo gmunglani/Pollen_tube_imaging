@@ -34,7 +34,7 @@ starti = 0; % Rectangle ROI Start length / no pixelsize means percentage as a fr
 stopi = 2; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
 
 % Kymo and movie options
-movie = 'testes9'; % Make movie file if string is not empty
+movie = 'badge'; % Make movie file if string is not empty
 framerate = 10; % Video frame rate
 Cmin = 1; % Min pixel value
 Cmax = 1.6; % Max pixel value
@@ -136,7 +136,8 @@ if (analysis == 1)
     subplot(2,2,1)
     plot(1:smp,Bsum);
     axis([0 smp 0.5*max(Bsum) max(Bsum)])
-    
+    title('Total Number of Pixels');
+
     [Mmin Mmax Mmin_prc Mmax_prc] = channel_analysis(M,smp);
     [B1min B1max B1min_prc B1max_prc] = channel_analysis(BT1,smp);
     [B2min B2max B2min_prc B2max_prc] = channel_analysis(BT2,smp);
@@ -150,7 +151,8 @@ if (analysis == 1)
     grid on
     axis([0 smp 0 max(Mmax)])
     set(gca,'YMinorTick','on')
-    
+    title('Percentiles of Ratio image');
+
     subplot(2,2,3)
     hold on
     plot(1:smp,B1max,'b*')
@@ -159,7 +161,8 @@ if (analysis == 1)
     plot(1:smp,B1min_prc,'rd')
     grid on
     axis([0 smp 0 max(Mmax)])
-    set(gca,'YMinorTick','on')
+    set(gca,'YMinorTick','on');
+    title('Percentiles of YFP image');
     
     subplot(2,2,4)
     hold on
@@ -169,8 +172,9 @@ if (analysis == 1)
     plot(1:smp,B2min_prc,'rd')
     grid on
     axis([0 smp 0 max(Mmax)])
-    set(gca,'YMinorTick','on')
-    
+    set(gca,'YMinorTick','on');
+    title('Percentiles of CFP image');
+    hold off
     save([movie '.mat'],'BT1','BT2','M');
     error('Check pixel counts and min/max intensity');
 end
@@ -304,8 +308,8 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
         end
         
         if(abs(total1(end,1) - total2(end,1)) < 0.75*diam)
-            total1(find(total1(:,2) >= max(total1(:,2)))) = []; 
-            total2(find(total2(:,2) >= max(total2(:,2)))) = [];  
+            total1(find(total1(:,2) >= max(total1(:,2))),:) = []; 
+            total2(find(total2(:,2) >= max(total2(:,2))),:) = [];  
         end
         
         % Check for straight lines in Y near the tip
