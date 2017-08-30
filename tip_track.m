@@ -1,7 +1,7 @@
 % Gautam Munglani
 % 15.08.2017
 
-clear variables
+clear all
 close all
 
 % Image path and input (MAKE SURE YOU HAVE THE RIGHT PATH)
@@ -9,14 +9,14 @@ fname_YFP ='~/Documents/MATLAB/Data31_YFP.tif';
 fname_CFP = '~/Documents/MATLAB/Data31_CFP.tif';
 
 % Input parameters
-thresh1 = 0.35; % Threshold value
+thresh1 = 0.33; % Threshold value
 tol = 0.65; % Tolerance for tip finding algoritm (multiplier for circle diameter)
-analysis = 0; % Turn on analysis mode
+analysis = 1; % Turn on analysis mode
 pixelsize = 0.1; % Pixel to um conversion
 gauss = 1.5; % Gauss filter option
 npixel = 6; % Number of pixels difference from start point for straight line fit
 stp = 1; % Start frame number
-smp = 1; % End frame number
+smp = 10; % End frame number
 
 % Bleaching options
 decay = -0.0008; % Bleaching decay (single exp decay, between -0.0005 and -0.0008)
@@ -29,28 +29,33 @@ nbreaks = 5; % Number of spline regions
 % ROI options
 ROItype = 1; % No ROI = 0; Moving ROI = 1; Stationary ROI = 2
 split = 1; % Split ROI along center line
-circle = 0; % Circle ROI as fraction of diameter
+circle = 0.75; % Circle ROI as fraction of diameter
 starti = 0; % Rectangle ROI Start length / no pixelsize means percentage as a fraction of length of tube
-stopi = 4; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
+stopi = 2; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
 
 % Kymo and movie options
-movie = 'testes5'; % Make movie file if string is not empty
+movie = 'testes9'; % Make movie file if string is not empty
 framerate = 10; % Video frame rate
 Cmin = 1; % Min pixel value
-Cmax = 1.7; % Max pixel value
-nkymo = 5; % Number of pixels line width average for kymograph (even number) (0 means no kymo)
+Cmax = 1.6; % Max pixel value
+nkymo = 0; % Number of pixels line width average for kymograph (even number) (0 means no kymo)
 
 % Diameter options 
-diamcutoff = 4; % Distance from tip for first diameter calculations (um)
+diamcutoff = 3; % Distance from tip for first diameter calculations (um)
 
 % Registration
-register = 1; % Register image
+register = 0; % Register image
 union = 1; % Take the union of the two image masks
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Frame range
 framerange = smp-stp+1;
 
-if ~exist([movie '.mat'],'file') == 1
+if  exist([movie '.mat'],'file') == 2    
+    load([movie '.mat']);
+    analysis = 0;
+    disp('Analysis file exists');
+else
+    
     % Get info about image files
     info1 = imfinfo(fname_YFP);
     num_images1 = numel(info1);
@@ -64,8 +69,11 @@ if ~exist([movie '.mat'],'file') == 1
     [tmp,posfront] = imcrop(Bl);
     
     [optimizer, metric] = imregconfig('multimodal');
-    Bedge = zeros(1,framerange); Bsum = zeros(1,framerange);
-    for count = 1:framerange
+    Bedge = zeros(1,smp); Bsum = zeros(1,smp);
+    BT1=zeros(ceil(posfront(3)),ceil(posfront(4)),smp);
+    BT2=zeros(ceil(posfront(3)),ceil(posfront(4)),smp);
+    
+    for count = stp:smp
         % Read image and add bleach correction
         disp(['Pre Processing:' num2str(count)]);
         A1 = imread(fname_YFP, count, 'Info', info1); A1 = A1 ./ exp(decay*timestep*count);
@@ -121,46 +129,59 @@ if ~exist([movie '.mat'],'file') == 1
     M = BT1./BT2; % Set M is equal to the channel of interest
     M(M==Inf) = 0;
     M(isnan(M)) = 0;
-else
-    load([movie '.mat'])
 end
 
 if (analysis == 1)
     figure
-    subplot(1,2,1)
-    plot(1:framerange,Bsum);
-    axis([0 framerange 0 max(Bsum)])
+    subplot(2,2,1)
+    plot(1:smp,Bsum);
+    axis([0 smp 0.5*max(Bsum) max(Bsum)])
     
-    for count = 1:framerange
-        C = M(:,:,count);
-        Mmax(count) = max(max(C));
-        Carray = reshape(C,size(C,2)*size(C,1),1);
-        Carray = Carray(Carray>0);
-        Mmax_prc(count) = prctile(Carray,95);
-        Mmin(count) = min(C(C>0));
-        Mmin_prc(count) = prctile(Carray,5);
-    end
+    [Mmin Mmax Mmin_prc Mmax_prc] = channel_analysis(M,smp);
+    [B1min B1max B1min_prc B1max_prc] = channel_analysis(BT1,smp);
+    [B2min B2max B2min_prc B2max_prc] = channel_analysis(BT2,smp);
     
-    subplot(1,2,2)
+    subplot(2,2,2)
     hold on
-    plot(1:framerange,Mmax,'b*')
-    plot(1:framerange,Mmax_prc,'bd')
-    plot(1:framerange,Mmin,'r*')
-    plot(1:framerange,Mmin_prc,'rd')
+    plot(1:smp,Mmax,'b*')
+    plot(1:smp,Mmax_prc,'bd')
+    plot(1:smp,Mmin,'r*')
+    plot(1:smp,Mmin_prc,'rd')
     grid on
-    axis([0 framerange 0 max(Mmax)])
+    axis([0 smp 0 max(Mmax)])
     set(gca,'YMinorTick','on')
-    save([movie '.mat'],BT1,BT2,M);
+    
+    subplot(2,2,3)
+    hold on
+    plot(1:smp,B1max,'b*')
+    plot(1:smp,B1max_prc,'bd')
+    plot(1:smp,B1min,'r*')
+    plot(1:smp,B1min_prc,'rd')
+    grid on
+    axis([0 smp 0 max(Mmax)])
+    set(gca,'YMinorTick','on')
+    
+    subplot(2,2,4)
+    hold on
+    plot(1:smp,B2max,'b*')
+    plot(1:smp,B2max_prc,'bd')
+    plot(1:smp,B2min,'r*')
+    plot(1:smp,B2min_prc,'rd')
+    grid on
+    axis([0 smp 0 max(Mmax)])
+    set(gca,'YMinorTick','on')
+    
+    save([movie '.mat'],'BT1','BT2','M');
     error('Check pixel counts and min/max intensity');
 end
 
 % Make a movie and output min and max intensities of the whole stack
 if ~isempty(movie)
-    video_processing(movie,framerange,BT1,BT2,framerate,timestep,Cmax,Cmin,M);
+    video_processing(movie,stp,smp,BT1,BT2,framerate,timestep,Cmax,Cmin,M);
 end
 
 if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
-    for count = 1:framerange
+    for count = stp:smp
         disp(['Image Analysis:' num2str(count)]);
         % Ratio image binarization
         C = M(:,:,count);
@@ -202,6 +223,7 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
         % the entire boundary
         yedge = find(ver(:,2) == maxy-1);
         [diam start edge] = edge_quant(ver,yedge);
+        if (count == stp) diamo = diam; end
         vers = circshift(ver,-start);
         
         % Locate which ellipse major axis point to use
@@ -216,7 +238,7 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
         tip = []; tipsx = []; tipsy = []; tips = []; tipex = []; tipey = []; tipe = []; tipm = []; dist = [];
         for i = 1:length(vers)
             dist = pdist2(vers(i,:),major(majpt,:));
-            if (dist < tol*diam) tip = [tip; vers(i,:)]; end
+            if (dist < tol*diamo) tip = [tip; vers(i,:)]; end
         end
         if isempty(tip) error('Reduce threshold or increase tolerance'); end
             
@@ -248,9 +270,7 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
             if((dlene(k) + dlens(k)) < 0) posid = k; break; end
         end
         tip_final(count,:) = bounda(rangetip(1)+posid,:);
-        
-        if isempty(tip_final(count,:)) tip_final(count,:) = bounda(round(mean(rangetip(1),rangetip(end))),:); end
-        
+                
         % Shift the entire boundary vector center at final tip
         posxf = []; posxy = []; boundb = [];
         posxf = find(bounda(:,1) == tip_final(count,1));
@@ -262,12 +282,12 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
         total1 = []; total2 = [];
         range1 = ceil(length(boundb)*0.5):length(boundb);
         dist1 = diag(pdist2(boundb(range1,:),(ones(length(range1),1))*tip_final(count,:)));
-        postotal1 = find(dist1 > diam*0.75)+range1(1)-1;
+        postotal1 = find(dist1 > diamo*0.75)+range1(1)-1;
         total1(:,:) = boundb(postotal1,:);
         
         range2 = ceil(length(boundb)*0.5)-1:-1:1;
         dist2 = diag(pdist2(boundb(range2,:),(ones(length(range2),1))*tip_final(count,:)));
-        postotal2 = range2(1)-find(dist2 > diam*0.75)+1;
+        postotal2 = range2(1)-find(dist2 > diamo*0.75)+1;
         total2(:,:) = boundb(postotal2,:);
         
         % Ensure that both curves reach maxy
@@ -281,6 +301,11 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
                 total2 = vertcat(total2, total1(end,:));
                 total1(end,:) = [];
             end
+        end
+        
+        if(abs(total1(end,1) - total2(end,1)) < 0.75*diam)
+            total1(find(total1(:,2) >= max(total1(:,2)))) = []; 
+            total2(find(total2(:,2) >= max(total2(:,2)))) = [];  
         end
         
         % Check for straight lines in Y near the tip
@@ -309,7 +334,7 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
         totals2 = total2(posl2:end,:);
         
         % Correct for angle at the right extreme of the image
-        [totals1 totals2] = angle_correction(totals1,totals2,maxy,diam);
+        [totals1 totals2] = angle_correction(totals1,totals2,maxy,diamo);
         
         % Find the lengths of individual segments of the side curves
         dlens1 = diag(pdist2(totals1(1:end-1,:),totals1(2:end,:)));
@@ -465,7 +490,7 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
                         roi = [round(linec(stoppos,1)) round(linec(stoppos,2))];
                         mask(round(linec(stoppos,1)),round(linec(stoppos,2))) = 1;
                     end
-                    F = bwdist(mask) >= 0.5*circle.*diam;
+                    F = bwdist(mask) >= 0.5*circle.*diamo;
                     F = imcomplement(F);
                 end
                 
@@ -492,6 +517,7 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
             
             % Calculate average intensities and pixel numbers
             pixelnum(count) = sum(sum(F));
+            intensity_tavg(count) = sum(sum(C));
             intensity_avg(count) = sum(sum(C.*F))/pixelnum(count);
             intensityB1_avg(count) = sum(sum(BT1(:,:,count).*F))/pixelnum(count);
             intensityB2_avg(count) = sum(sum(BT2(:,:,count).*F))/pixelnum(count);
@@ -523,7 +549,7 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
         end
         
         % Kymograph
-        if (count == framerange && nkymo > 0)
+        if (count == smp && nkymo > 0)
             % Find projection outside tip
             linect = vertcat(tip_final(count,:),linec(1,:));
             fitct = polyfit(linect(:,2),linect(:,1),1);
@@ -557,7 +583,7 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
         end
         
         % Images and mask visualization
-        if (count == 1 || count == framerange)
+        if (count == stp || count == smp)
             figure
             subplot(2,3,1)
             imshow(BT1(:,:,count));
@@ -583,7 +609,7 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
             plot(boundb(:,2), boundb(:,1), 'g', 'LineWidth', 2);
             plot(major(majpt,2),major(majpt,1),'y+', 'LineWidth', 5);
             ellipse_view(stats);
-            circledraw([round(major(majpt,2)) round(major(majpt,1))],round(tol*diam),100,':');
+            circledraw([round(major(majpt,2)) round(major(majpt,1))],round(tol*diamo),100,':');
             plot(tip(:,2), tip(:,1), 'g*');
             plot(tip_final(count,2), tip_final(count,1), 'c+', 'LineWidth', 5);
             plot(total1(:,2), total1(:,1), 'k', 'LineWidth', 2);
@@ -599,7 +625,7 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
                         plot(roi2(:,2),roi2(:,1),'r','LineWidth', 2);
                     end
                 else
-                    circledraw([roi(:,2) roi(:,1)],round(0.5*circle*diam),100,'r');
+                    circledraw([roi(:,2) roi(:,1)],round(0.5*circle*diamo),100,'r');
                 end
             end
             axis equal
