@@ -5,18 +5,19 @@ clear all
 close all
 
 % Image path and input (MAKE SURE YOU HAVE THE RIGHT PATH)
-fname_YFP ='~/Documents/MATLAB/Data31_YFP.tif';
-fname_CFP = '~/Documents/MATLAB/Data31_CFP.tif';
+fname_YFP ='J:\LRX_calcium\Data31_YFP.tif';
+fname_CFP = 'J:\LRX_calcium\Data31_CFP.tif';
 
 % Input parameters
-thresh1 = 0.33; % Threshold value
+thresh1 = 0.4; % Threshold value
+thresh2 = 0.4; % Threshold value
 tol = 0.65; % Tolerance for tip finding algoritm (multiplier for circle diameter)
 analysis = 1; % Turn on analysis mode
 pixelsize = 0.1; % Pixel to um conversion
 gauss = 1.5; % Gauss filter option
 npixel = 6; % Number of pixels difference from start point for straight line fit
 stp = 1; % Start frame number
-smp = 10; % End frame number
+smp = 4; % End frame number
 
 % Bleaching options
 decay = -0.0008; % Bleaching decay (single exp decay, between -0.0005 and -0.0008)
@@ -29,22 +30,22 @@ nbreaks = 5; % Number of spline regions
 % ROI options
 ROItype = 1; % No ROI = 0; Moving ROI = 1; Stationary ROI = 2
 split = 1; % Split ROI along center line
-circle = 0.75; % Circle ROI as fraction of diameter
+circle = 0.6; % Circle ROI as fraction of diameter
 starti = 0; % Rectangle ROI Start length / no pixelsize means percentage as a fraction of length of tube
 stopi = 2; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
 
 % Kymo and movie options
-movie = 'badge'; % Make movie file if string is not empty
+movie = 'Data31_wobg'; % Make movie file if string is not empty
 framerate = 10; % Video frame rate
-Cmin = 1; % Min pixel value
-Cmax = 1.6; % Max pixel value
+Cmin = 0.5; % Min pixel value
+Cmax = 1; % Max pixel value
 nkymo = 0; % Number of pixels line width average for kymograph (even number) (0 means no kymo)
 
 % Diameter options 
 diamcutoff = 3; % Distance from tip for first diameter calculations (um)
 
 % Registration
-register = 0; % Register image
+register = 1; % Register image
 union = 1; % Take the union of the two image masks
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Frame range
@@ -83,7 +84,7 @@ else
         B1 = mat2gray(A1);
         B2 = mat2gray(A2);
         
-        if (register == 1) B2 = imregister(B2,B1,'similarity',optimizer,metric); end
+        if (register == 1) B2 = imregister(B2,B1,'translation',optimizer,metric); end
         
         B1 = imgaussfilt(B1,gauss);
         B2 = imgaussfilt(B2,gauss);
@@ -91,12 +92,14 @@ else
         % Subtract background
         BF1 = imcrop(B1,posfront); BB1 = imcrop(B1,posback);
         BF1(BF1<thresh1) = 0; BB1(BB1>thresh1) = 0;
-        BN1 = BF1 - sum(sum(BB1))/length(find(BB1>0));
+%         BN1 = BF1 - sum(sum(BB1))/length(find(BB1>0));
+        BN1 = BF1;
         BN1(BN1<0) = 0;
         
         BF2 = imcrop(B2,posfront); BB2 = imcrop(B2,posback);
-        BF2(BF2<thresh1) = 0; BB2(BB2>thresh1) = 0;
-        BN2 = BF2 - sum(sum(BB2))/length(find(BB2>0));
+        BF2(BF2<thresh2) = 0; BB2(BB2>thresh2) = 0;
+%         BN2 = BF2 - sum(sum(BB2))/length(find(BB2>0));
+        BN2 = BF2;
         BN2(BN2<0) = 0;
         
         % Orient image
@@ -120,6 +123,10 @@ else
             BT2(:,:,count) = BN2;
         end
         Bsum(count) = sum(B(:));
+        BN1sum(count) = nnz(BN1);
+        BN2sum(count) = nnz(BN2);
+        BF1sum(count) = nnz(BF1);
+        BF2sum(count) = nnz(BF2);
     end
     
     BT1 = BT1(:,1:end-max(Bedge),:);
@@ -134,7 +141,10 @@ end
 if (analysis == 1)
     figure
     subplot(2,2,1)
-    plot(1:smp,Bsum);
+    plot(stp:smp,Bsum,'b');
+    hold on
+    plot(stp:smp,BN1sum,'r');
+    plot(stp:smp,BN2sum,'g');
     axis([0 smp 0.5*max(Bsum) max(Bsum)])
     title('Total Number of Pixels');
 
@@ -144,10 +154,10 @@ if (analysis == 1)
     
     subplot(2,2,2)
     hold on
-    plot(1:smp,Mmax,'b*')
-    plot(1:smp,Mmax_prc,'bd')
-    plot(1:smp,Mmin,'r*')
-    plot(1:smp,Mmin_prc,'rd')
+    plot(stp:smp,Mmax,'b*')
+    plot(stp:smp,Mmax_prc,'bd')
+    plot(stp:smp,Mmin,'r*')
+    plot(stp:smp,Mmin_prc,'rd')
     grid on
     axis([0 smp 0 max(Mmax)])
     set(gca,'YMinorTick','on')
@@ -155,10 +165,10 @@ if (analysis == 1)
 
     subplot(2,2,3)
     hold on
-    plot(1:smp,B1max,'b*')
-    plot(1:smp,B1max_prc,'bd')
-    plot(1:smp,B1min,'r*')
-    plot(1:smp,B1min_prc,'rd')
+    plot(stp:smp,B1max,'b*')
+    plot(stp:smp,B1max_prc,'bd')
+    plot(stp:smp,B1min,'r*')
+    plot(stp:smp,B1min_prc,'rd')
     grid on
     axis([0 smp 0 max(Mmax)])
     set(gca,'YMinorTick','on');
@@ -166,10 +176,10 @@ if (analysis == 1)
     
     subplot(2,2,4)
     hold on
-    plot(1:smp,B2max,'b*')
-    plot(1:smp,B2max_prc,'bd')
-    plot(1:smp,B2min,'r*')
-    plot(1:smp,B2min_prc,'rd')
+    plot(stp:smp,B2max,'b*')
+    plot(stp:smp,B2max_prc,'bd')
+    plot(stp:smp,B2min,'r*')
+    plot(stp:smp,B2min_prc,'rd')
     grid on
     axis([0 smp 0 max(Mmax)])
     set(gca,'YMinorTick','on');
@@ -181,7 +191,7 @@ end
 
 % Make a movie and output min and max intensities of the whole stack
 if ~isempty(movie)
-    video_processing(movie,stp,smp,BT1,BT2,framerate,timestep,Cmax,Cmin,M);
+   video_processing(movie,stp,smp,BT1,BT2,framerate,timestep,Cmax,Cmin,M);
 end
 
 if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
@@ -588,6 +598,24 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
         
         % Images and mask visualization
         if (count == stp || count == smp)
+            if(count == stp) 
+                Chist1 = reshape(C,1,size(C,1)*size(C,2)); 
+                B1hist1 = reshape(BT1(:,:,count),1,size(BT1(:,:,count),1)*size(BT1(:,:,count),2));
+                B2hist1 = reshape(BT2(:,:,count),1,size(BT2(:,:,count),1)*size(BT2(:,:,count),2));
+                
+                ChistF1 = reshape(C.*F,1,size(C,1)*size(C,2)); 
+                B1histF1 = reshape(BT1(:,:,count).*F,1,size(BT1(:,:,count),1)*size(BT1(:,:,count),2));
+                B2histF1 = reshape(BT2(:,:,count).*F,1,size(BT2(:,:,count),1)*size(BT2(:,:,count),2));
+            else 
+                Chist2 = reshape(C,1,size(C,1)*size(C,2)); 
+                B1hist2 = reshape(BT1(:,:,count),1,size(BT1(:,:,count),1)*size(BT1(:,:,count),2));
+                B2hist2 = reshape(BT2(:,:,count),1,size(BT2(:,:,count),1)*size(BT2(:,:,count),2));
+                
+                ChistF2 = reshape(C.*F,1,size(C,1)*size(C,2)); 
+                B1histF2 = reshape(BT1(:,:,count).*F,1,size(BT1(:,:,count),1)*size(BT1(:,:,count),2));
+                B2histF2 = reshape(BT2(:,:,count).*F,1,size(BT2(:,:,count),1)*size(BT2(:,:,count),2));
+            end
+            
             figure
             subplot(2,3,1)
             imshow(BT1(:,:,count));
@@ -658,16 +686,16 @@ if (diamcutoff > 0)
     title('Tip Final Position');
 
     subplot(1,2,2)
-    plot(1:1:count,diamf_avg,'b')
+    plot(1:length(diamf_avg),diamf_avg,'b')
     title('Average Diameter')
     axis([0 max(count) 0 max(diamf_avg)])
 end
 
 if (ROItype > 0)
     figure    
-    plot(1:1:count,pixelnum,'b')
+    plot(1:length(pixelnum),pixelnum,'b')
     title('Pixel Number')
-    axis([0 max(count) 0 max(pixelnum)])
+    axis([0 max(count) 0 max(pixelnum)+max(pixelnum)/10])
 end
 
 % Total intensity plots
@@ -676,24 +704,24 @@ if (ROItype > 0)
     if (split == 1) 
         subplot(1,3,2)
         hold on
-        plot(1:1:count,intensityS1_avg,'g')
-        plot(1:1:count,intensityB1S1_avg,'r')
-        plot(1:1:count,intensityB2S1_avg,'b')
+        plot(1:length(intensityS1_avg),intensityS1_avg,'g')
+        plot(1:length(intensityB1S1_avg),intensityB1S1_avg,'r')
+        plot(1:length(intensityB2S1_avg),intensityB2S1_avg,'b')
         title('Average Intensity Side')
        
         subplot(1,3,3)
         hold on
-        plot(1:1:count,intensityS2_avg,'g')
-        plot(1:1:count,intensityB1S2_avg,'r')
-        plot(1:1:count,intensityB2S2_avg,'b')
+        plot(1:length(intensityS2_avg),intensityS2_avg,'g')
+        plot(1:length(intensityB1S2_avg),intensityB1S2_avg,'r')
+        plot(1:length(intensityB2S2_avg),intensityB2S2_avg,'b')
         title('Average Intensity Side')
        
         subplot(1,3,1); 
     end
     hold on
-    plot(1:1:count,intensity_avg,'g')
-    plot(1:1:count,intensityB1_avg,'r')
-    plot(1:1:count,intensityB2_avg,'b')
+    plot(1:length(intensity_avg),intensity_avg,'g')
+    plot(1:length(intensityB1_avg),intensityB1_avg,'r')
+    plot(1:length(intensityB2_avg),intensityB2_avg,'b')
     title('Average Intensity')
 end
 
@@ -704,3 +732,37 @@ if (nkymo > 0)
     map = vertcat([0 0 0],map);
     imshow(uint8(kymo_avg.*255),map)
 end
+
+
+figure
+subplot(1,2,1)
+histogram(Chist1(Chist1>0.1))
+hold on; histogram(Chist2(Chist2>0.1))
+title('Histogram C')
+
+subplot(1,2,2)
+histogram(ChistF1(ChistF1>0.1))
+hold on; histogram(ChistF2(ChistF2>0.1))
+title('Histogram CF')
+
+figure
+subplot(1,2,1)
+histogram(B1hist1(B1hist1>0.1))
+hold on; histogram(B1hist2(B1hist2>0.1))
+title('Histogram B1')
+
+subplot(1,2,2)
+histogram(B1histF1(B1histF1>0.1))
+hold on; histogram(B1histF2(B1histF2>0.1))
+title('Histogram B1F')
+
+figure
+subplot(1,2,1)
+histogram(B2hist1(B2hist1>0.1))
+hold on; histogram(B2hist2(B2hist2>0.1))
+title('Histogram B2')
+
+subplot(1,2,2)
+histogram(B2histF1(B2histF1>0.1))
+hold on; histogram(B2histF2(B2histF2>0.1))
+title('Histogram B2F')
