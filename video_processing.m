@@ -7,6 +7,7 @@ open(V);
 
 K = M(:,:,stp:smp)./Cmax;
 K(isnan(K)) = 0;
+Cmin_tmp = Cmin;
 Cmin = Cmin/Cmax;
 
 % L = (K-Cmin)./(1-Cmin);
@@ -21,13 +22,14 @@ for count = 1:size(L,3)
     figure(h);
     map = colormap(jet(255));
     map = vertcat([0 0 0],map);
-    disp(['Video Processing:' num2str(count)]);
+    disp(['Video Processing:' num2str((count+stp-1))]);
     imshow(L(:,:,count),map);
-    txtstr = strcat('Frame: ',num2str(count*timestep));
-    text(10,10,txtstr,'color','white')
+  %  txtstr = strcat('Time(s): ',num2str((count+stp-1)*timestep));
+   % text(10,10,txtstr,'color','white')
     hcb = colorbar;
-    set(hcb,'YTick',[]);
-    %drawnow;
+    set(hcb,'YTick', [0 255])
+    set(hcb,'YTickLabel', {num2str(Cmin_tmp),num2str(Cmax)})
+%    set(hcb,'YTick',[]);
     frame = getframe(gcf);
     set(gca, 'CLim', [0,255]);
     writeVideo(V,frame);
