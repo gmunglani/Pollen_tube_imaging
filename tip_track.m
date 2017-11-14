@@ -5,22 +5,22 @@ clear all
 close all
 
 % Image path and input (MAKE SURE YOU HAVE THE RIGHT PATH)
-fname_YFP = 'Data31_YFP.tif';
-fname_CFP = 'Data31_CFP.tif';
+fname_YFP = '~/Documents/MATLAB/images/20171101_eLOC_YC/4_1_2e7_YFP.tif';
+fname_CFP = '~/Documents/MATLAB/images/20171101_eLOC_YC/4_1_2e7_CFP.tif';
 
 % Input parameters
-thresh_sd = 5; % Threshold value
-tol = 0.7; % Tolerance for tip finding algoritm (multiplier for circle diameter)
+thresh_mult = 1.1;
+tol = 0.5; % Tolerance for tip finding algorithm (multiplier for circle diameter)
 analysis = 1; % Turn on analysis mode
 pixelsize = 0.1; % Pixel to um conversion
 gauss = 1.5; % Gauss filter option
 npixel = 6; % Number of pixels difference from start point for straight line fit
 stp = 1; % Start frame number
-smp = 1; % End frame number
+smp = 118; % End frame number
 
 % Bleaching optionsnum
-decay = -0.00007; % Bleaching decay (single exp decay, between -0.00005 and -0.00008)
-timestep = 5; % Frame rate of movie
+decay = -0.002; % Bleaching decay (single exp decay, between -0.00005 and -0.00008)
+timestep = 0.25; % Frame rate of movie
 
 % Spline options
 nint = 100; % Number of points to fit for spline
@@ -29,23 +29,24 @@ nbreaks = 5; % Number of spline regions
 % ROI options
 ROItype = 1; % No ROI = 0; Moving ROI = 1; Stationary ROI = 2
 split = 0; % Split ROI along center line
-circle = 0; % Circle ROI as fraction of diameter
+circle = 0.5; % Circle ROI as fraction of diameter
 starti = 0; % Rectangle ROI Start length / no pixelsize means percentage as a fraction of length of tube
-stopi = 7; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
+stopi = 3; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
 
 % Kymo and movie options
-movie = 'Data31_test16_Bleach'; % Make movie file if string is not empty
-framerate = 20; % Video frame rate
-Cmin = 2; % Min pixel value
-Cmax = 3; % Max pixel value
+movie = '~/Documents/MATLAB/results/4_1_2e7_test7'; % Make movie file if string is not empty
+video_plot = 1; % Video of tip detection
+Cmin = 1; % Min pixel value
+Cmax = 2.5; % Max pixel value
 nkymo = 0; % Number of pixels line width average for kymograph (even number) (0 means no kymo)
 
 % Diameter options 
-diamcutoff = 3; % Distance from tip for first diameter calculations (um)
+diamcutoff = 2; % Distance from tip for first diameter calculations (um)
 
 % Registration
 register = 1; % Register image
 union = 1; % Take the union of the two image masks
+framerate = 1/timestep; % Video frame rate
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Frame range
@@ -67,42 +68,52 @@ else
     [tmp,posback] = imcrop(Bl);
     [tmp,posfront] = imcrop(Bl);
     
+
     [optimizer, metric] = imregconfig('multimodal');
     Bedge = zeros(1,smp); Bsum = zeros(1,smp);
-
+    
     for count = stp:smp
         % Read image and add bleach correction
         disp(['Pre Processing:' num2str(count)]);
         
-        A1 = imread(fname_YFP,count); A1 = A1 ./ exp(decay*timestep*count);
+        A1 = imread(fname_YFP,count); 
         A2 = imread(fname_CFP,count);
         
         AF1 = imcrop(A1,posfront); BB1 = imcrop(A1,posback);
         AF2 = imcrop(A2,posfront); BB2 = imcrop(A2,posback);
        
-        BF1 = double(imgaussfilt(AF1,gauss)); 
+        % 8, 12 or 16 bit images
+        if (max(AF1(:)) > 255 && max(AF1(:)) < 4096)
+            threshold1(count) = 4095.*graythresh(uint16((double(AF1)./4095).*65535));
+            threshold2(count) = 4095.*graythresh(uint16((double(AF2)./4095).*65535));
+        elseif (max(AF1(:)) <= 255)
+            threshold1(count) = 255.*graythresh(AF1);
+            threshold2(count) = 255.*graythresh(AF2);
+        else
+            threshold1(count) = 65535.*graythresh(AF1);
+            threshold2(count) = 65535.*graythresh(AF2);
+        end
+        
+        BF1 = double(imgaussfilt(AF1,gauss));
         BF2 = double(imgaussfilt(AF2,gauss));
-
-        threshold1(count) = prctile(reshape(BF1,1,numel(BF1)),89);
-        threshold2(count) = prctile(reshape(BF2,1,numel(BF2)),89);
         
         if (register == 1) BF2 = imregister(BF2,BF1,'translation',optimizer,metric); end
 
-        BF1(BF1<threshold1(count)) = 0; BB1(BB1>threshold1(count)) = 0;
-        BF2(BF2<threshold2(count)) = 0; BB2(BB2>threshold2(count)) = 0;       
+        BF1(BF1<threshold1(count)*thresh_mult) = 0; BB1(BB1>threshold1(count)*thresh_mult) = 0;
+        BF2(BF2<threshold2(count)*thresh_mult) = 0; BB2(BB2>threshold2(count)*thresh_mult) = 0;       
         
         % Convert to grayscale, register and apply gaussian
         % Subtract background
         BN1 = BF1 - sum(sum(BB1))/length(find(BB1>0));
-      %  BN1 = BF1;
         BN1(BN1<0) = 0;
         
         BN2 = BF2 - sum(sum(BB2))/length(find(BB2>0));
-      %  BN2 = BF2;
         BN2(BN2<0) = 0;
 
+        BN1 = BN1 ./ exp(decay*timestep*count);
+        
         % Orient image
-        if (count==stp) type = find_orient(BN1); end
+        if (count==stp) type = find_orient(BF1); end
         if (type == 1) BN1 = imrotate(BN1,-90); BN2 = imrotate(BN2,-90);
         elseif (type == 3) BN1 = imrotate(BN1,90); BN2 = imrotate(BN2,90);
         elseif (type == 4) BN1 = imrotate(BN1,180); BN2 = imrotate(BN2,180);
@@ -118,7 +129,7 @@ else
         while(sum(B(:,end-Bedge(count))) == 0)
             Bedge(count) = Bedge(count) + 1;
         end
-        
+
         if (union == 1)
             BT1(:,:,count) = BN1.*B;
             BT2(:,:,count) = BN2.*B;
@@ -141,14 +152,15 @@ else
     BT1 = BT1./BT1max;
     BT2 = BT2./BT1max; 
         
-    % Create ratio image
+    % Create ratio image and output values
     M = BT1./BT2; % Set M is equal to the channel of interest
     M(M==Inf) = 0;
     M(isnan(M)) = 0;
 end
 
 if (analysis == 1)
-    figure
+    h = figure;
+    figure(h);
     subplot(2,2,1)
     plot(stp:smp,Bsum,'b');
     hold on
@@ -178,7 +190,7 @@ if (analysis == 1)
     plot(stp:smp,B1max_prc,'bd')
     plot(stp:smp,B1min,'r*')
     plot(stp:smp,B1min_prc,'rd')
-    grid on
+    grid on      
     axis([0 smp 0 1])
     set(gca,'YMinorTick','on');
     title('Percentiles of YFP image');
@@ -195,6 +207,7 @@ if (analysis == 1)
     title('Percentiles of CFP image');
     hold off
     save([movie '.mat'],'BT1','BT2','M');
+    savefig(h,movie);
     error('Check pixel counts and min/max intensity');
 end
 
@@ -203,30 +216,25 @@ if ~isempty(movie)
    video_processing(movie,stp,smp,BT1,BT2,framerate,timestep,Cmax,Cmin,M);
 end
 
-deviants = []; boundvid = zeros(3000,2,smp);
+% Video plot
+movie = [movie '_ellipse.avi'];
+V = VideoWriter(movie);
+V.FrameRate = framerate;    
+open(V);
+
+deviants = []; 
 if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
     for count = stp:smp
         disp(['Image Analysis:' num2str(count)]);
         % Ratio image binarization
         C = M(:,:,count);
-        E = imbinarize(C,0.5);
+        D = bwareafilt(imbinarize(C,0.5),1);
         
-        % Fit ellipse continuously until major axis near tip is detected
-        J = E;
-        for a = 1:size(E,2)
-            if(size(J,2) > min(find(sum(E,1)>1))+1.25.*sum(E(:,end))) J(:,end) = [];
-            else break;
-            end
-            
-            stats = regionprops(J,'Orientation','MajorAxisLength', 'BoundingBox', ...
-                'MinorAxisLength', 'Eccentricity', 'Centroid','Area','FilledImage');
-            
-            % Fit an ellipse to the entire image and get the maximum point
-            major(a,:) = [stats(1).Centroid(2) + stats(1).MajorAxisLength*0.5 * sin(pi*stats(1).Orientation/180) ...
-                stats(1).Centroid(1) - stats(1).MajorAxisLength*0.5 * cos(pi*stats(1).Orientation/180)];
-            
-        end
+        Ehmax = max(find(D(:,end)==1));
+        Ehmin = min(find(D(:,end)==1));
         
+        E = imfill(drawline(D,Ehmin,size(D,2),Ehmax,size(D,2),1),'holes');
+
         % Extract image boundary (longest boundary)
         I = bwboundaries(E,'holes');
         temp1 = [];
@@ -235,6 +243,26 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
         end
         [posI posI] = max(temp1);
         bound = I{posI};
+                
+        stats_orig = regionprops(E,'Orientation','MajorAxisLength', 'BoundingBox', ...
+                'MinorAxisLength', 'Eccentricity', 'Centroid','Area','FilledImage');
+            
+        Ewmax = min(find(E(floor(stats_orig.BoundingBox(2)+stats_orig.BoundingBox(4)),:)==1));
+        Ewmin = min(find(E(ceil(stats_orig.BoundingBox(2)),:)==1));
+        
+        Eangle_up = atan2(abs(stats_orig.BoundingBox(2)+stats_orig.BoundingBox(4)-Ehmax),size(E,2)-Ewmax)*180/pi;    
+        Eangle_do = atan2(abs(Ehmin-stats_orig.BoundingBox(2)),size(E,2)-Ewmin)*180/pi;    
+        
+        Eangle = max(abs(Eangle_up),abs(Eangle_do));
+        Eratio = stats_orig.BoundingBox(4)/(Ehmax-Ehmin);
+        Exdist = 1.5 - min(0.3*(Eratio)*Eangle/15,0.3); 
+        
+        J = E(:,1:floor(stats_orig.BoundingBox(1)+Exdist*sum(E(:,end))));
+        stats = regionprops(J,'Orientation','MajorAxisLength', 'BoundingBox', ...
+                'MinorAxisLength', 'Eccentricity', 'Centroid','Area','FilledImage');
+        
+        major(1,:) = [stats(1).Centroid(2) + stats(1).MajorAxisLength*0.5 * sin(pi*stats(1).Orientation/180) ...
+                      stats(1).Centroid(1) - stats(1).MajorAxisLength*0.5 * cos(pi*stats(1).Orientation/180)];             
         
         % Remove points on the extreme right
         maxy = size(E,2);
@@ -250,22 +278,15 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
         [diam start edge] = edge_quant(ver,yedge);
         if (count == stp) diamo = diam; end
         vers = circshift(ver,-start);
-        
-        % Locate which ellipse major axis point to use
-        ell = abs(major(:,1) - mean(edge(:,1)));
-        [peakdo,locel] = findpeaks(ell);
-        if (isempty(locel)) majpt = length(ell);
-        else majpt = locel(end);
-        end
-        
+
         % Find the points on the convex hull within a quarter of the diameter from the
         % ellipse major axis tip
         tip = []; tipsx = []; tipsy = []; tips = []; tipex = []; tipey = []; tipe = []; tipm = []; dist = [];
         for i = 1:length(vers)
-            dist = pdist2(vers(i,:),major(majpt,:));
+            dist = pdist2(vers(i,:),major(1,:));
             if (dist < tol*diamo) tip = [tip; vers(i,:)]; end
         end
-        if isempty(tip) error('Reduce threshold or increase tolerance'); end
+        if isempty(tip) close(V); error('Increase tolerance'); end
             
         % Shift array to start at first point of tip area
         % Get the start(s), end(e) and mid(m) of the tip area
@@ -347,7 +368,7 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
             lenl1 = 0;
         end
         
-        linel2 = find((abs(total2(:,2) - total2(1,2)))<=6);
+        linel2 = find((abs(total2(:,2) - total2(1,2)))<=npixel);
         if(length(linel2) > 5)
             posl2 = max(linel2);
             lenl2 = abs(total2(posl2,1) - total2(1,1));
@@ -494,7 +515,7 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
             
             % Create masks for rectangles and circles, and include whether they are
             % normal, split or stationary
-            if (ROItype ~= 2 | count == 1)
+            if (ROItype ~= 2 | count == stp)
                 if (circle == 0)
                     roi = vertcat(total1(startc1:stopc1,:), total2(stopc2:-1:startc2,:));
                     if (starti < distct) roi = vertcat(boundb(postotal2(1):postotal1(2),:),roi); end
@@ -577,10 +598,6 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
             end   
         end
         
-        boundvid(1:size(boundb,1),1:size(boundb,2),count) = boundb(:,:);
-        Fvid(:,:,count) = F;
-        linectvid(:,:,count) = vertcat(tip_final(count,:),linec(:,:));
-        
         % Kymograph
         if (count == smp && nkymo > 0)
             % Find projection outside tip
@@ -613,6 +630,52 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
                 kymo_avg(:,n) = mean(kymo(:,:),2);
             end
             kymo_avg(find(kymo_avg<0)) = 0;
+        end
+        
+        if (video_plot == 1)
+            % Plotting video of data
+            h = figure;
+            figure(h);
+            hold on
+            plot(boundb(:,2), boundb(:,1), 'g', 'LineWidth', 2);
+            plot(major(:,2),major(:,1),'k*', 'LineWidth', 4);
+            ellipse_view(stats);
+            circledraw([round(major(:,2)) round(major(:,1))],round(tol*diamo),100,':');
+            plot(tip_final(count,2), tip_final(count,1), 'r*', 'LineWidth', 4);
+            plot(tip(:,2), tip(:,1), 'm', 'LineWidth', 2);
+            plot(total1(:,2), total1(:,1), 'k', 'LineWidth', 2);
+            plot(total2(:,2), total2(:,1), 'b', 'LineWidth', 2);
+            quiver(xc,yc,-dy,dx, 0, 'm')
+            plot(xc, yc, 'c*', 'LineWidth', 0.5);
+            
+            if (diamcutoff > 0)
+                for i = 1:length(cut)
+                    plot([xy1f(cut(i),2) xy2f(cut(i),2)],[xy1f(cut(i),1) xy2f(cut(i),1)],'k')
+                end
+                axis equal
+                
+             %   figure
+             %   plot(distctf,diamf,'b')
+             %   title('Diameter with distance from the tip');
+            end
+            
+%             if (ROItype > 0)
+%                 if (circle == 0)
+%                     plot(roi(:,2),roi(:,1),'r','LineWidth', 2);
+%                     if (split == 1)
+%                         plot(roi1(:,2),roi1(:,1),'r','LineWidth', 2);
+%                         plot(roi2(:,2),roi2(:,1),'r','LineWidth', 2);
+%                     end
+%                 else
+%                     circledraw([roi(:,2) roi(:,1)],round(0.5*circle*diamo),100,'r');
+%                 end
+%             end
+
+            axis([0 max(size(E,2),size(E,1)) 0 max(size(E,2),size(E,1))])
+            title(['Frame:' num2str(count)])
+            frame = getframe(gcf);
+            writeVideo(V,frame);
+            close(h)
         end
         
         % Images and mask visualization
@@ -654,64 +717,67 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
                 imshow(F);
             end
             
-            % Plotting of data
-            figure
-            hold on
-            plot(boundb(:,2), boundb(:,1), 'g', 'LineWidth', 2);
-            plot(major(majpt,2),major(majpt,1),'y+', 'LineWidth', 5);
-            ellipse_view(stats);
-            circledraw([round(major(majpt,2)) round(major(majpt,1))],round(tol*diamo),100,':');
-            plot(tip(:,2), tip(:,1), 'g*');
-            plot(tip_final(count,2), tip_final(count,1), 'c+', 'LineWidth', 5);
-            plot(total1(:,2), total1(:,1), 'k', 'LineWidth', 2);
-            plot(total2(:,2), total2(:,1), 'b', 'LineWidth', 2);
-            quiver(xc,yc,-dy,dx, 0, 'm')
-            plot(xc, yc, 'c*', 'LineWidth', 0.5);
+%             % Plotting of data
+%             figure
+%             hold on
+%             plot(boundb(:,2), boundb(:,1), 'g', 'LineWidth', 2);
+%             plot(major(majpt,2),major(majpt,1),'y+', 'LineWidth', 5);
+%             ellipse_view(stats);
+%             circledraw([round(major(majpt,2)) round(major(majpt,1))],round(tol*diamo),100,':');
+%             plot(tip(:,2), tip(:,1), 'g*');
+%             plot(tip_final(count,2), tip_final(count,1), 'c+', 'LineWidth', 5);
+%             plot(total1(:,2), total1(:,1), 'k', 'LineWidth', 2);
+%             plot(total2(:,2), total2(:,1), 'b', 'LineWidth', 2);
+%             quiver(xc,yc,-dy,dx, 0, 'm')
+%             plot(xc, yc, 'c*', 'LineWidth', 0.5);
+%             
+%             if (ROItype > 0)
+%                 if (circle == 0)
+%                     plot(roi(:,2),roi(:,1),'r','LineWidth', 2);
+%                     if (split == 1)
+%                         plot(roi1(:,2),roi1(:,1),'r','LineWidth', 2);
+%                         plot(roi2(:,2),roi2(:,1),'r','LineWidth', 2);
+%                     end
+%                 else
+%                     circledraw([roi(:,2) roi(:,1)],round(0.5*circle*diamo),100,'r');
+%                 end
+%             end
+%             axis equal
             
-            if (ROItype > 0)
-                if (circle == 0)
-                    plot(roi(:,2),roi(:,1),'r','LineWidth', 2);
-                    if (split == 1)
-                        plot(roi1(:,2),roi1(:,1),'r','LineWidth', 2);
-                        plot(roi2(:,2),roi2(:,1),'r','LineWidth', 2);
-                    end
-                else
-                    circledraw([roi(:,2) roi(:,1)],round(0.5*circle*diamo),100,'r');
-                end
-            end
-            axis equal
-            
-            if (diamcutoff > 0)                
-                for i = 1:length(cut)
-                    plot([xy1f(cut(i),2) xy2f(cut(i),2)],[xy1f(cut(i),1) xy2f(cut(i),1)],'k')
-                    hold on
-                end                
-                axis equal
-                
-                figure
-                plot(distctf,diamf,'b')
-                title('Diameter with distance from the tip');
+%             if (diamcutoff > 0)                
+%                 for i = 1:length(cut)
+%                     plot([xy1f(cut(i),2) xy2f(cut(i),2)],[xy1f(cut(i),1) xy2f(cut(i),1)],'k')
+%                     hold on
+%                 end                
+%                 axis equal
+%                 
+%                 figure
+%                 plot(distctf,diamf,'b')
+%                 title('Diameter with distance from the tip');
             %    axis([max(distcf)*0.5 max(distcf)*1.5 max(distcf)*0.5 max(diamf)*1.5])
-            end
+%             end
         end
     end
 end
+
+close(V);
+
 % Final tip movement/pixel number on a frame basis
 if (diamcutoff > 0)
     figure
     subplot(1,2,1)
     plot(tip_final(:,2),tip_final(:,1))
     axis([0 size(E,2) 0 size(E,1)])
+    set(gca, 'FontSize', 16)
     title('Tip Final Position');
 
     subplot(1,2,2)
     plot(1:length(diamf_avg),diamf_avg,'b')
-    xlabel('X Axis', 'FontSize',12)
+    xlabel('Frame number', 'FontSize',12)
     xt = get(gca, 'XTick');
     set(gca, 'FontSize', 16)
-    ylabel('Y Axis', 'FontSize',12)
+    ylabel('Average Diameter', 'FontSize',12)
     yt = get(gca, 'YTick');
-    set(gca, 'FontSize', 16)
     title('Average Diameter')
     axis([0 max(count) 0 max(diamf_avg)])
 end
@@ -730,15 +796,15 @@ if (ROItype > 0)
         subplot(1,3,2)
         hold on
         plot(1:length(intensityS1_avg),intensityS1_avg,'g')
-        plot(1:length(intensityB1S1_avg),intensityB1S1_avg,'r')
-        plot(1:length(intensityB2S1_avg),intensityB2S1_avg,'b')
+        plot(1:length(intensityB1S1_avg),intensityB1S1_avg,'b')
+        plot(1:length(intensityB2S1_avg),intensityB2S1_avg,'r')
         title('Average Intensity Side')
        
         subplot(1,3,3)
         hold on
         plot(1:length(intensityS2_avg),intensityS2_avg,'g')
-        plot(1:length(intensityB1S2_avg),intensityB1S2_avg,'r')
-        plot(1:length(intensityB2S2_avg),intensityB2S2_avg,'b')
+        plot(1:length(intensityB1S2_avg),intensityB1S2_avg,'b')
+        plot(1:length(intensityB2S2_avg),intensityB2S2_avg,'r')
         title('Average Intensity Side')
        
         subplot(1,3,1); 
@@ -746,8 +812,8 @@ if (ROItype > 0)
     hold on
     plot(1:length(intensity_avg),intensity_avg,'g')
 %    plot(1:length(intensity_tavg),intensity_tavg,'k')
-    plot(1:length(intensityB1_avg),intensityB1_avg,'r')
-    plot(1:length(intensityB2_avg),intensityB2_avg,'b')
+    plot(1:length(intensityB1_avg),intensityB1_avg,'b')
+    plot(1:length(intensityB2_avg),intensityB2_avg,'r')
     title('Average Intensity'); xlabel('Frame');ylabel('Intensity')
 end
 

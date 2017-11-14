@@ -1,4 +1,4 @@
-function ellipse_view(s,mid)
+function ellipse_view(s)
 
 phi = linspace(0,2*pi,50);
 cosphi = cos(phi);

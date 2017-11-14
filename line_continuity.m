@@ -11,10 +11,21 @@ end
 if (type == 1) distc = horzcat(0,distc); end
 
 dposcrossa = find(diff(poscrossa) <= 0);
+%dposcrossb = find(diff(poscrossb) <= 0)
+
+% if ~isempty(dposcrossa)
+%     if (dposcrossa(1) == 1)
+%         poscrossa(1) = [];
+%         poscrossb(1) = [];
+%         distc(1) = []; 
+%         dposcrossa = find(diff(poscrossa) <= 0)
+%     end
+% end
+
 while ~isempty(dposcrossa) 
-    poscrossa(dposcrossa+1) = [];
-    poscrossb(dposcrossa+1) = [];
-    distc(dposcrossa+1) = []; 
+    poscrossa(dposcrossa) = [];
+    poscrossb(dposcrossa) = [];
+    distc(dposcrossa) = []; 
     dposcrossa = find(diff(poscrossa) <= 0);
 end
 
