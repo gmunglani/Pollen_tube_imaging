@@ -9,8 +9,8 @@ num_images = numel(info);
 % Input parameters
 tol = 1; % Tolerance for tip finding algorithm (multiplier for circle diameter)
 pixelsize = 0.1; % Pixel to um conversion
-gauss = 2;
-mult_thresh = 1.14;
+gauss = 2; % Gaussian smoothing
+mult_thresh = 1.14; % Multi threshold mult to ensure mask is correct
 npixel = 6; % Number of pixels difference from start point for straight line fit
 diamcutoff = 4; % Distance from tip for first diameter calculations (um)
 
@@ -20,8 +20,7 @@ nbreaks = 5; % Number of spline regions
 
 % Reading the image, cropping and adding a blurring filter and thresholding
 A = imread(fname);
-%B = imcrop(A);
-B = A;
+B = imcrop(A);
 C = imgaussfilt(mat2gray(B),gauss);
 cutoff = multithresh(C,2);
 D = imquantize(C,[cutoff(1)*mult_thresh cutoff(2)/mult_thresh]);
