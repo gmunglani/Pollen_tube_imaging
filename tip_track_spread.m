@@ -6,18 +6,17 @@ fname_YFP = '/home/gm/Documents/Work/Images/Ratio_tubes/YC11_YFP.tif';
 fname_CFP = '/home/gm/Documents/Work/Images/Ratio_tubes/YC11_CFP.tif';
 
 % Input parameters
-thresh_mult = 1.1;
 tol = 1; % Tolerance for tip finding algorithm (multiplier for circle diameter)
 analysis = 1; % Turn on analysis mode
 details = 0;  % Show histograms of results in the end
 pixelsize = 0.1; % Pixel to um conversion
 npixel = 6; % Number of pixels difference from start point for straight line fit
 stp = 1; % Start frame number
-smp = 160; % End frame number
+smp = 5; % End frame number
 
 % Spline options
 nint = 100; % Number of points to fit for spline
-nbreaks = 5;% Number of ssspline regions
+nbreaks = 5;% Number of spline regions
 
 % ROI options
 ROItype = 1; % No ROI = 0; Moving ROI = 1; Stationary ROI = 2
@@ -28,15 +27,15 @@ stopi = 30; % Rectangle/Circle ROI Stop length / no pixelsize means percentage a
 
 % Kymo and movie options
 path = '~/Documents/Scripts/MATLAB/tip_results/test8'; % Make movie file if string is not empty
-video_intensity = 0;
-video_plot = 0; % Video of tip detection
+video_intensity = 0; % Video intensity
+video_plot = 1; % Video of tip detection
 timestep = 0.25; % Frame rate of movie
 Cmin = 2.1; % Min pixel value
 Cmax = 2.7; % Max pixel value
 nkymo = 0; % Number of pixels line width average for kymograph (even number) (0 means no kymo)
 
 % Diameter options 
-diamcutoff = 2; % Distance from tip for first diameter calculations (um)
+diamcutoff = 0; % Distance from tip for first diameter calculations (um)
 
 % Registration
 register = 1; % Register image
@@ -55,11 +54,16 @@ else
     info2 = imfinfo(fname_CFP);
     num_images2 = numel(info2);
     
+    for proc = stp:smp
+        
+    end
+    
     % Crop region on the last frame
     Al = imread(fname_CFP, smp, 'Info', info1);
     Bl = imgaussfilt(mat2gray(Al),gauss);
     [tmp,posfront] = imcrop(Bl);
-  
+    [optimizer, metric] = imregconfig('multimodal');
+
     Bedge = zeros(1,smp); Bsum = zeros(1,smp);
     
     for count = stp:smp
@@ -71,23 +75,8 @@ else
         
         AF1 = imcrop(A1,posfront)
         AF2 = imcrop(A2,posfront)
-       
-        % 8, 12 or 16 bit images
-        if (max(AF1(:)) > 255 && max(AF1(:)) < 4096)
-            threshold1(count) = 4095.*graythresh(uint16((double(AF1)./4095).*65535));
-            threshold2(count) = 4095.*graythresh(uint16((double(AF2)./4095).*65535));
-        elseif (max(AF1(:)) <= 255)
-            threshold1(count) = 255.*graythresh(AF1);
-            threshold2(count) = 255.*graythresh(AF2);
-        else
-            threshold1(count) = 65535.*graythresh(AF1);
-            threshold2(count) = 65535.*graythresh(AF2);
-        end
         
         if (register == 1) BF2 = imregister(BF2,BF1,'translation',optimizer,metric); end
-
-        BF1(BF1<threshold1(count)*thresh_mult) = 0; 
-        BF2(BF2<threshold2(count)*thresh_mult) = 0;  
         
         % Orient image
         if (count==stp) type = find_orient(BF1); end
@@ -558,50 +547,49 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
             figure(h);
             hold on
             plot(boundb(:,2), boundb(:,1), 'g', 'LineWidth', 2);
-            ellipse_view2(center,phin(count),axes);
+            ellipse_view(center,phin(count),axes);
             circledraw([round(major(:,2)) round(major(:,1))],round((toln+0.1)*diamo),100,'k:');
             plot(tip_final(count,2), tip_final(count,1), 'm*', 'LineWidth', 4);
-            plot(tip_finalo(count,2), tip_finalo(count,1), 'r*', 'LineWidth', 4);
             plot(tip_check(:,2), tip_check(:,1), 'b*', 'LineWidth', 4);            
             
             plot(center(2),center(1),'b*', 'LineWidth',4);
-            plot(tip_new(:,2), tip_new(:,1), 'm', 'LineWidth', 2);
             plot(total1(:,2), total1(:,1), 'k', 'LineWidth', 2);
             plot(total2(:,2), total2(:,1), 'b', 'LineWidth', 2);
+            plot(tip_new(:,2), tip_new(:,1), 'm', 'LineWidth', 2);
             quiver(xc,yc,-dy,dx, 0, 'm')
             plot(xc, yc, 'c*', 'LineWidth', 0.5);
-            
-            if (diamcutoff > 0)
-                for i = 1:length(cut)
-                    plot([xy1f(cut(i),2) xy2f(cut(i),2)],[xy1f(cut(i),1) xy2f(cut(i),1)],'k')
-                end
-                axis equal
-                
-               figure
-               plot(distctf,diamf,'b')
-               title('Diameter with distance from the tip');
-            end
-            
-            if (ROItype > 0)
-                if (circle == 0)
-                    plot(roi(:,2),roi(:,1),'r','LineWidth', 2);
-                    if (split == 1)
-                        plot(roi1(:,2),roi1(:,1),'r','LineWidth', 2);
-                        plot(roi2(:,2),roi2(:,1),'r','LineWidth', 2);
-                    end
-                else
-                    circledraw([roi(:,2) roi(:,1)],round(0.5*circle*diamo),100,'r');
-                end
-            end
 
-            if (video_plot == 1)
-                axis([0 max(size(E,2),size(E,1)) 0 max(size(E,2),size(E,1))])
-                title(['Frame:' num2str(count)])
-                frame = getframe(gcf);
-                writeVideo(V,frame);
-                close(h);
-            end
+%             if (ROItype > 0)
+%                 if (circle == 0)
+%                     plot(roi(:,2),roi(:,1),'r','LineWidth', 2);
+%                     if (split == 1)
+%                         plot(roi1(:,2),roi1(:,1),'r','LineWidth', 2);
+%                         plot(roi2(:,2),roi2(:,1),'r','LineWidth', 2);
+%                     end
+%                 else
+%                     circledraw([roi(:,2) roi(:,1)],round(0.5*circle*diamo),100,'r');
+%                 end
+%             end
+        
+            axis([0 max(size(E,2),size(E,1)) 0 max(size(E,2),size(E,1))])
+            title(['Frame:' num2str(count)])
+            frame = getframe(gcf);
+            writeVideo(V,frame);
+            close(h);
         end
+        
+        if (diamcutoff > 0)
+            for i = 1:length(cut)
+                plot([xy1f(cut(i),2) xy2f(cut(i),2)],[xy1f(cut(i),1) xy2f(cut(i),1)],'k')
+            end
+            axis equal
+            
+            figure
+            plot(distctf,diamf,'b')
+            title('Diameter with distance from the tip');
+        end
+        
+
         
         % Images and mask visualization
         if (count == stp || count == smp)

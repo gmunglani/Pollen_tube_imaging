@@ -1,43 +1,46 @@
-% Gautam Munglani
+%Gautam Munglani
 % 15.08.2017
 
 clear all
 close all
 
 % Image path and input (MAKE SURE YOU HAVE THE RIGHT PATH)
-fname_YFP = '~/Documents/MATLAB/images/20171101_eLOC_YC/4_1_2e7_YFP.tif';
-fname_CFP = '~/Documents/MATLAB/images/20171101_eLOC_YC/4_1_2e7_CFP.tif';
+%fname_YFP = '~/Documents/MATLAB/images/20171101_eLOC_YC/4_1_2e7_YFP.tif';
+%fname_CFP = '~/Documents/MATLAB/images/20171101_eLOC_YC/4_1_2e7_CFP.tif';
+
+fname_YFP = '/home/gm/Documents/Work/Images/Ratio_tubes/YC11_YFP.tif';
+fname_CFP = '/home/gm/Documents/Work/Images/Ratio_tubes/YC11_CFP.tif';
 
 % Input parameters
 thresh_mult = 1.1;
-tol = 0.5; % Tolerance for tip finding algorithm (multiplier for circle diameter)
+tol = 1; % Tolerance for tip finding algorithm (multiplier for circle diameter)
 analysis = 1; % Turn on analysis mode
 pixelsize = 0.1; % Pixel to um conversion
 gauss = 1.5; % Gauss filter option
 npixel = 6; % Number of pixels difference from start point for straight line fit
 stp = 1; % Start frame number
-smp = 118; % End frame number
+smp = 160; % End frame number
 
-% Bleaching optionsnum
-decay = -0.002; % Bleaching decay (single exp decay, between -0.00005 and -0.00008)
+% Bleaching options
+decay = -0.007; % Bleaching decay (single exp decay, between -0.00005 and -0.00008)
 timestep = 0.25; % Frame rate of movie
 
 % Spline options
 nint = 100; % Number of points to fit for spline
-nbreaks = 5; % Number of spline regions
+nbreaks = 5;% Number of ssspline regions
 
 % ROI options
 ROItype = 1; % No ROI = 0; Moving ROI = 1; Stationary ROI = 2
 split = 0; % Split ROI along center line
-circle = 0.5; % Circle ROI as fraction of diameter
+circle = 0; % Circle ROI as fraction of diameter
 starti = 0; % Rectangle ROI Start length / no pixelsize means percentage as a fraction of length of tube
-stopi = 3; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
+stopi = 30; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
 
 % Kymo and movie options
-movie = '~/Documents/MATLAB/results/4_1_2e7_test7'; % Make movie file if string is not empty
+movie = '~/Documents/Scripts/MATLAB/tip_results/test8'; % Make movie file if string is not empty
 video_plot = 1; % Video of tip detection
-Cmin = 1; % Min pixel value
-Cmax = 2.5; % Max pixel value
+Cmin = 2.1; % Min pixel value
+Cmax = 2.7; % Max pixel value
 nkymo = 0; % Number of pixels line width average for kymograph (even number) (0 means no kymo)
 
 % Diameter options 
@@ -67,8 +70,7 @@ else
     Bl = imgaussfilt(mat2gray(Al),gauss);
     [tmp,posback] = imcrop(Bl);
     [tmp,posfront] = imcrop(Bl);
-    
-
+  
     [optimizer, metric] = imregconfig('multimodal');
     Bedge = zeros(1,smp); Bsum = zeros(1,smp);
     
@@ -104,10 +106,10 @@ else
         
         % Convert to grayscale, register and apply gaussian
         % Subtract background
-        BN1 = BF1 - sum(sum(BB1))/length(find(BB1>0));
+        BN1 = BF1;% - sum(sum(BB1))/length(find(BB1>0));
         BN1(BN1<0) = 0;
         
-        BN2 = BF2 - sum(sum(BB2))/length(find(BB2>0));
+        BN2 = BF2;% - sum(sum(BB2))/length(find(BB2>0));
         BN2(BN2<0) = 0;
 
         BN1 = BN1 ./ exp(decay*timestep*count);
@@ -213,16 +215,15 @@ end
 
 % Make a movie and output min and max intensities of the whole stack
 if ~isempty(movie)
-   video_processing(movie,stp,smp,BT1,BT2,framerate,timestep,Cmax,Cmin,M);
+%   video_processing(movie,stp,smp,BT1,BT2,framerate,timestep,Cmax,Cmin,M);
 end
 
 % Video plot
 movie = [movie '_ellipse.avi'];
 V = VideoWriter(movie);
-V.FrameRate = framerate;    
+V.FrameRate = framerate;
 open(V);
 
-deviants = []; 
 if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
     for count = stp:smp
         disp(['Image Analysis:' num2str(count)]);
@@ -262,7 +263,7 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
                 'MinorAxisLength', 'Eccentricity', 'Centroid','Area','FilledImage');
         
         major(1,:) = [stats(1).Centroid(2) + stats(1).MajorAxisLength*0.5 * sin(pi*stats(1).Orientation/180) ...
-                      stats(1).Centroid(1) - stats(1).MajorAxisLength*0.5 * cos(pi*stats(1).Orientation/180)];             
+                      stats(1).Centroid(1) - stats(1).MinorAxisLength*0.5 * cos(pi*stats(1).Orientation/180)];             
         
         % Remove points on the extreme right
         maxy = size(E,2);
@@ -279,6 +280,21 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
         if (count == stp) diamo = diam; end
         vers = circshift(ver,-start);
 
+        ybound = find(bound(:,2) == maxy-1);
+        boundc = circshift(bound,-ybound(1));
+        flag_tol = false; toln = tol;
+        while(flag_tol == 0)
+            tip_new = [];
+            for i = 1:length(bound)
+                dist_val = pdist2(boundc(i,:),major(1,:));
+                if (dist_val < toln*diamo) tip_new = [tip_new; boundc(i,:)]; end
+            end
+       
+            [tip_final(count,:),center,phin(count),axes,tip_check,fix(count), flag_tol] = ellipse_data(tip_new);
+            cacl(count) = axes(1) - axes(2);
+            toln = toln - 0.1;
+        end
+        
         % Find the points on the convex hull within a quarter of the diameter from the
         % ellipse major axis tip
         tip = []; tipsx = []; tipsy = []; tips = []; tipex = []; tipey = []; tipe = []; tipm = []; dist = [];
@@ -314,19 +330,15 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
         posid = round(length(dlenm)*0.5);
         for k = 1:length(dlenm)
             if((dlene(k) + dlens(k)) < 0) posid = k; break; end
-        end
-        tip_final(count,:) = bounda(rangetip(1)+posid,:);
-        if (count>1)
-            if (norm(tip_final(count,:) - tip_final(count-1,:)) > 10)
-                deviants = [deviants count];
-            end
-        end
+        end     
+        tip_finalo(count,:) = bounda(rangetip(1)+posid,:);
+        
         % Shift the entire boundary vector center at final tip
         posxf = []; posxy = []; boundb = [];
-        posxf = find(bounda(:,1) == tip_final(count,1));
-        posyf = find(bounda(:,2) == tip_final(count,2));
+        posxf = find(boundc(:,1) == tip_final(count,1));
+        posyf = find(boundc(:,2) == tip_final(count,2));
         interf = intersect(posxf,posyf);
-        boundb = circshift(bounda,(-ceil(length(bounda)*0.5)-interf(1)));
+        boundb = circshift(boundc,(-ceil(length(boundc)*0.5)-interf(1)));
         
         % Find the curves along the sides of the tubes
         total1 = []; total2 = [];
@@ -558,6 +570,8 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
                     FS2 = F.*poly2mask(roi2(:,2),roi2(:,1),size(E,1),size(E,2));
                 end
             end
+            
+            
             % Create mask for intensity calculations
             maskim = cast(F, class(E));
             maskim_tmp = repmat(maskim, [1 1 3]);
@@ -638,26 +652,30 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
             figure(h);
             hold on
             plot(boundb(:,2), boundb(:,1), 'g', 'LineWidth', 2);
-            plot(major(:,2),major(:,1),'k*', 'LineWidth', 4);
-            ellipse_view(stats);
-            circledraw([round(major(:,2)) round(major(:,1))],round(tol*diamo),100,':');
-            plot(tip_final(count,2), tip_final(count,1), 'r*', 'LineWidth', 4);
-            plot(tip(:,2), tip(:,1), 'm', 'LineWidth', 2);
+         %   plot(major(:,2),major(:,1),'k*', 'LineWidth', 4);
+            ellipse_view2(center,phin(count),axes);
+            circledraw([round(major(:,2)) round(major(:,1))],round((toln+0.1)*diamo),100,'k:');
+            plot(tip_final(count,2), tip_final(count,1), 'm*', 'LineWidth', 4);
+            plot(tip_finalo(count,2), tip_finalo(count,1), 'r*', 'LineWidth', 4);
+            plot(tip_check(:,2), tip_check(:,1), 'b*', 'LineWidth', 4);            
+            
+            plot(center(2),center(1),'b*', 'LineWidth',4);
+            plot(tip_new(:,2), tip_new(:,1), 'm', 'LineWidth', 2);
             plot(total1(:,2), total1(:,1), 'k', 'LineWidth', 2);
             plot(total2(:,2), total2(:,1), 'b', 'LineWidth', 2);
             quiver(xc,yc,-dy,dx, 0, 'm')
             plot(xc, yc, 'c*', 'LineWidth', 0.5);
             
-            if (diamcutoff > 0)
-                for i = 1:length(cut)
-                    plot([xy1f(cut(i),2) xy2f(cut(i),2)],[xy1f(cut(i),1) xy2f(cut(i),1)],'k')
-                end
-                axis equal
-                
-             %   figure
-             %   plot(distctf,diamf,'b')
-             %   title('Diameter with distance from the tip');
-            end
+%             if (diamcutoff > 0)
+%                 for i = 1:length(cut)
+%                     plot([xy1f(cut(i),2) xy2f(cut(i),2)],[xy1f(cut(i),1) xy2f(cut(i),1)],'k')
+%                 end
+%                 axis equal
+%                 
+%              %   figure
+%              %   plot(distctf,diamf,'b')
+%              %   title('Diameter with distance from the tip');
+%             end
             
 %             if (ROItype > 0)
 %                 if (circle == 0)
@@ -675,7 +693,7 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
             title(['Frame:' num2str(count)])
             frame = getframe(gcf);
             writeVideo(V,frame);
-            close(h)
+            close(h);
         end
         
         % Images and mask visualization
@@ -763,103 +781,103 @@ end
 close(V);
 
 % Final tip movement/pixel number on a frame basis
-if (diamcutoff > 0)
-    figure
-    subplot(1,2,1)
-    plot(tip_final(:,2),tip_final(:,1))
-    axis([0 size(E,2) 0 size(E,1)])
-    set(gca, 'FontSize', 16)
-    title('Tip Final Position');
+% if (diamcutoff > 0)
+%     figure
+%     subplot(1,2,1)
+%     plot(tip_final(:,2),tip_final(:,1))
+%     axis([0 size(E,2) 0 size(E,1)])
+%     set(gca, 'FontSize', 16)
+%     title('Tip Final Position');
+% 
+%     subplot(1,2,2)
+%     plot(1:length(diamf_avg),diamf_avg,'b')
+%     xlabel('Frame number', 'FontSize',12)
+%     xt = get(gca, 'XTick');
+%     set(gca, 'FontSize', 16)
+%     ylabel('Average Diameter', 'FontSize',12)
+%     yt = get(gca, 'YTick');
+%     title('Average Diameter')
+%     axis([0 max(count) 0 max(diamf_avg)])
+% end
+% 
+% if (ROItype > 0)
+%     figure    
+%     plot(1:length(pixelnum),pixelnum,'b')
+%     title('Pixel Number')
+%     axis([0 max(count) 0 max(pixelnum)+max(pixelnum)/10])
+% end
 
-    subplot(1,2,2)
-    plot(1:length(diamf_avg),diamf_avg,'b')
-    xlabel('Frame number', 'FontSize',12)
-    xt = get(gca, 'XTick');
-    set(gca, 'FontSize', 16)
-    ylabel('Average Diameter', 'FontSize',12)
-    yt = get(gca, 'YTick');
-    title('Average Diameter')
-    axis([0 max(count) 0 max(diamf_avg)])
-end
-
-if (ROItype > 0)
-    figure    
-    plot(1:length(pixelnum),pixelnum,'b')
-    title('Pixel Number')
-    axis([0 max(count) 0 max(pixelnum)+max(pixelnum)/10])
-end
-
-% Total intensity plots
-if (ROItype > 0)
-    figure
-    if (split == 1) 
-        subplot(1,3,2)
-        hold on
-        plot(1:length(intensityS1_avg),intensityS1_avg,'g')
-        plot(1:length(intensityB1S1_avg),intensityB1S1_avg,'b')
-        plot(1:length(intensityB2S1_avg),intensityB2S1_avg,'r')
-        title('Average Intensity Side')
-       
-        subplot(1,3,3)
-        hold on
-        plot(1:length(intensityS2_avg),intensityS2_avg,'g')
-        plot(1:length(intensityB1S2_avg),intensityB1S2_avg,'b')
-        plot(1:length(intensityB2S2_avg),intensityB2S2_avg,'r')
-        title('Average Intensity Side')
-       
-        subplot(1,3,1); 
-    end
-    hold on
-    plot(1:length(intensity_avg),intensity_avg,'g')
-%    plot(1:length(intensity_tavg),intensity_tavg,'k')
-    plot(1:length(intensityB1_avg),intensityB1_avg,'b')
-    plot(1:length(intensityB2_avg),intensityB2_avg,'r')
-    title('Average Intensity'); xlabel('Frame');ylabel('Intensity')
-end
-
-% Kymograph
-if (nkymo > 0)
-    figure
-    map = colormap(jet(255));
-    map = vertcat([0 0 0],map);
-    imshow(uint8(kymo_avg.*255),map)
-end
-
-
-figure
-subplot(1,2,1)
-histogram(Chist1(Chist1>0.1))
-hold on; histogram(Chist2(Chist2>0.1))
-title('Histogram C')
-
-subplot(1,2,2)
-histogram(ChistF1(ChistF1>0.1))
-hold on; histogram(ChistF2(ChistF2>0.1))
-title('Histogram CF')
-
-figure
-subplot(1,2,1)
-histogram(B1hist1(B1hist1>0.1))
-hold on; histogram(B1hist2(B1hist2>0.1))
-title('Histogram B1')
-
-subplot(1,2,2)
-histogram(B1histF1(B1histF1>0.1))
-hold on; histogram(B1histF2(B1histF2>0.1))
-title('Histogram B1F')
-
-figure
-subplot(1,2,1)
-histogram(B2hist1(B2hist1>0.1))
-hold on; histogram(B2hist2(B2hist2>0.1))
-title('Histogram B2')
-
-subplot(1,2,2)
-histogram(B2histF1(B2histF1>0.1))
-hold on; histogram(B2histF2(B2histF2>0.1))
-title('Histogram B2F')
-
-
-
-
-
+% % Total intensity plots
+% if (ROItype > 0)
+%     figure
+%     if (split == 1) 
+%         subplot(1,3,2)
+%         hold on
+%         plot(1:length(intensityS1_avg),intensityS1_avg,'g')
+%         plot(1:length(intensityB1S1_avg),intensityB1S1_avg,'b')
+%         plot(1:length(intensityB2S1_avg),intensityB2S1_avg,'r')
+%         title('Average Intensity Side')
+%        
+%         subplot(1,3,3)
+%         hold on
+%         plot(1:length(intensityS2_avg),intensityS2_avg,'g')
+%         plot(1:length(intensityB1S2_avg),intensityB1S2_avg,'b')
+%         plot(1:length(intensityB2S2_avg),intensityB2S2_avg,'r')
+%         title('Average Intensity Side')
+%        
+%         subplot(1,3,1); 
+%     end
+%     hold on
+%     plot(1:length(intensity_avg),intensity_avg,'g')
+% %    plot(1:length(intensity_tavg),intensity_tavg,'k')
+%     plot(1:length(intensityB1_avg),intensityB1_avg,'b')
+%     plot(1:length(intensityB2_avg),intensityB2_avg,'r')
+%     title('Average Intensity'); xlabel('Frame');ylabel('Intensity')
+% end
+% 
+% % Kymograph
+% if (nkymo > 0)
+%     figure
+%     map = colormap(jet(255));
+%     map = vertcat([0 0 0],map);
+%     imshow(uint8(kymo_avg.*255),map)
+% end
+% 
+% 
+% figure
+% subplot(1,2,1)
+% histogram(Chist1(Chist1>0.1))
+% hold on; histogram(Chist2(Chist2>0.1))
+% title('Histogram C')
+% 
+% subplot(1,2,2)
+% histogram(ChistF1(ChistF1>0.1))
+% hold on; histogram(ChistF2(ChistF2>0.1))
+% title('Histogram CF')
+% 
+% figure
+% subplot(1,2,1)
+% histogram(B1hist1(B1hist1>0.1))
+% hold on; histogram(B1hist2(B1hist2>0.1))
+% title('Histogram B1')
+% 
+% subplot(1,2,2)
+% histogram(B1histF1(B1histF1>0.1))
+% hold on; histogram(B1histF2(B1histF2>0.1))
+% title('Histogram B1F')
+% 
+% figure
+% subplot(1,2,1)
+% histogram(B2hist1(B2hist1>0.1))
+% hold on; histogram(B2hist2(B2hist2>0.1))
+% title('Histogram B2')
+% 
+% subplot(1,2,2)
+% histogram(B2histF1(B2histF1>0.1))
+% hold on; histogram(B2histF2(B2histF2>0.1))
+% title('Histogram B2F')
+% 
+% 
+% 
+% 
+% 

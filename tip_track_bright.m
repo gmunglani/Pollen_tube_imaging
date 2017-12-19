@@ -2,12 +2,12 @@ clear all
 close all
 
 % Image path and input
-fname = '';
+fname = '/home/gm/Documents/Work/Images/BF_tubes/Col6_adj.tiff';
 info = imfinfo(fname);
 num_images = numel(info);
 
 % Input parameters
-tol = 0.6; % Tolerance for tip finding algorithm (multiplier for circle diameter)
+tol = 1; % Tolerance for tip finding algorithm (multiplier for circle diameter)
 pixelsize = 0.1; % Pixel to um conversion
 gauss = 2;
 mult_thresh = 1.14;
@@ -20,7 +20,8 @@ nbreaks = 5; % Number of spline regions
 
 % Reading the image, cropping and adding a blurring filter and thresholding
 A = imread(fname);
-B = imcrop(A);
+%B = imcrop(A);
+B = A;
 C = imgaussfilt(mat2gray(B),gauss);
 cutoff = multithresh(C,2);
 D = imquantize(C,[cutoff(1)*mult_thresh cutoff(2)/mult_thresh]);
@@ -87,50 +88,29 @@ yedge = find(ver(:,2) == maxy-1);
 [diam start edge] = edge_quant(ver,yedge);
 vers = circshift(ver,-start);
 
-% Find the points on the convex hull within a ratio of the diameter from the
-% ellipse major axis tip
-tip = []; tipsx = []; tipsy = []; tips = []; tipex = []; tipey = []; tipe = []; tipm = []; dist = [];
-for i = 1:length(vers)
-    dist = pdist2(vers(i,:),major(1,:));
-    if (dist < tol*diam) tip = [tip; vers(i,:)]; end
+% Tip finding algorithm
+ybound = find(bound(:,2) == maxy-1);
+boundc = circshift(bound,-ybound(1));
+flag_tol = false; toln = tol;
+while(flag_tol == 0)
+    tip_new = [];
+    for i = 1:length(bound)
+        dist_val = pdist2(boundc(i,:),major(1,:));
+        if (dist_val < toln*diam) tip_new = [tip_new; boundc(i,:)]; end
+    end
+    
+    [tip_final,center,phin,axes,tip_check,fix, flag_tol] = ellipse_data(tip_new);
+    cacl = axes(1) - axes(2);
+    toln = toln - 0.1;
 end
-if isempty(tip) error('Increase tolerance'); end
 
-% Shift array to start at first point of tip area
-% Get the start(s), end(e) and mid(m) of the tip area
-tipsx = [find(bound(:,1) == tip(1,1))];
-tipsy = [find(bound(:,2) == tip(1,2))];
-intertips = intersect(tipsx,tipsy);
-bounda = circshift(bound,-intertips(1));
-tips = bounda(1,:);
-
-tipex = [find(bounda(:,1) == tip(end,1))];
-tipey = [find(bounda(:,2) == tip(end,2))];
-intertipe = intersect(tipex,tipey);
-tipe = bounda(intertipe(1),:);
-
-tipm = bounda(round((length(bounda)+intertipe)/2),:);
-rangetip = intertipe(1):length(bounda);
-
-% Calculate the differential of all points in the tip region from the
-% start, mid and end points
-[dlenm] = dist_smooth(tipm(1,:),rangetip,bounda,1,5);
-[dlene] = dist_smooth(tipe(1,:),rangetip,bounda,1,5);
-[dlens] = dist_smooth(tips(1,:),rangetip,bounda,1,5);
-
-% Locate the final tip by analysing the data
-posid = round(length(dlenm)*0.5);
-for k = 1:length(dlenm)
-    if((dlene(k) + dlens(k)) < 0) posid = k; break; end
-end
-tip_final = bounda(rangetip(1)+posid,:);
 
 % Shift the entire boundary vector center at final tip
 posxf = []; posxy = []; boundb = [];
-posxf = find(bounda(:,1) == tip_final(1));
-posyf = find(bounda(:,2) == tip_final(2));
+posxf = find(boundc(:,1) == tip_final(1));
+posyf = find(boundc(:,2) == tip_final(2));
 interf = intersect(posxf,posyf);
-boundb = circshift(bounda,(-ceil(length(bounda)*0.5)-interf(1)));
+boundb = circshift(boundc,(-ceil(length(boundc)*0.5)-interf(1)));
 
 % Find the curves along the sides of the tubes
 total1 = []; total2 = [];
@@ -301,15 +281,16 @@ end
 figure
 hold on
 plot(boundb(:,2), boundb(:,1), 'g', 'LineWidth', 2);
-plot(major(:,2),major(:,1),'k*', 'LineWidth', 4);
-ellipse_view(stats);
-circledraw([round(major(:,2)) round(major(:,1))],round(tol*diam),100,':');
+%plot(major(:,2),major(:,1),'k*', 'LineWidth', 4);
+ellipse_view(center,phin,axes);
+%circledraw([round(major(:,2)) round(major(:,1))],round(tol*diam),100,':');
 plot(tip_final(2), tip_final(1), 'r*', 'LineWidth', 4);
-plot(tip(:,2), tip(:,1), 'm', 'LineWidth', 2);
 plot(total1(:,2), total1(:,1), 'k', 'LineWidth', 2);
 plot(total2(:,2), total2(:,1), 'b', 'LineWidth', 2);
+plot(tip_new(:,2), tip_new(:,1), 'm', 'LineWidth', 2);
 quiver(xc,yc,-dy,dx, 0, 'm')
 plot(xc, yc, 'c*', 'LineWidth', 0.5);
+%plot(center(:,2),center(:,1),'k*','LineWidth',2)
 
 if (diamcutoff > 0)
     for i = 1:length(cut)
@@ -322,4 +303,4 @@ if (diamcutoff > 0)
     plot(distctf,diamf,'b')
     title('Diameter with distance from the tip');
 end
-
+Average_diam = mean(diamf)

@@ -1,8 +1,10 @@
-function video_processing(movie,stp,smp,BT1,BT2,framerate,timestep,Cmax,Cmin,M)
+function video_processing(movie,stp,smp,BT1,BT2,timestep,Cmax,Cmin,M)
 
 movie = [movie '.avi'];
+%movie = [movie '.png'];
+
 V = VideoWriter(movie);
-V.FrameRate = framerate;
+V.FrameRate = 1/timestep;
 open(V);    
 
 K = M(:,:,stp:smp)./Cmax;
@@ -27,15 +29,16 @@ for count = 1:size(L,3)
   %  txtstr = strcat('Time(s): ',num2str((count+stp-1)*timestep));
    % text(10,10,txtstr,'color','white')
     hcb = colorbar;
+    set(hcb,'FontSize',20)
     set(hcb,'YTick', [0 255])
     set(hcb,'YTickLabel', {num2str(Cmin_tmp),num2str(Cmax)})
 %    set(hcb,'YTick',[]);
     frame = getframe(gcf);
     set(gca, 'CLim', [0,255]);
-    writeVideo(V,frame);
+ %   writeVideo(V,frame);
    % close(h);
 end
-close(V);
+%close(V);
 disp(['Cmax:' num2str(Cmax)]);
 disp(['Cmin:' num2str(Cmin*Cmax)]);
 

@@ -1,4 +1,4 @@
-function [diffxy] = dist_smooth(ref,loc,bound,avg,avg_diff)
+function [avgxy,diffxy] = dist_smooth(ref,loc,bound,avg,avg_diff)
 
 leng = []; 
 j = 1;

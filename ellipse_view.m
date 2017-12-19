@@ -1,13 +1,13 @@
-function ellipse_view2(center,phin,axes)
+function ellipse_view(center,phin,axes)
 
 phi = linspace(0,2*pi,180);
 cosphi = cos(phi);
 sinphi = sin(phi);
+xbar = center(1);
+ybar = center(2);
 
 for k = 1:length(phi)
-    xbar = center(1);
-    ybar = center(2);
-    theta = phin;
+
     
     if (axes(2) > axes(1))
         a = axes(1);
@@ -17,8 +17,8 @@ for k = 1:length(phi)
         b = axes(1);
     end
             
-    R = [ cos(theta)  sin(theta)
-          -sin(theta)   cos(theta)];
+    R = [ cos(phin)  sin(phin)
+          -sin(phin)   cos(phin)];
 
     xy = [a*cosphi; b*sinphi];
     xy = R'*xy;

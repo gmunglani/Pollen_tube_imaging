@@ -110,27 +110,22 @@ function [ang n] = ellipse_angle_of_rotation2(a, axes)
 end
 
 function [xe1, ye1, xe2, ye2] = ellipse_tip(center, axes, phi)
-% 
      if (axes(2) > axes(1))
          a = axes(1);
          b = axes(2);
-         theta = phi - pi/2;
      else
          a = axes(2);
          b = axes(1);
-         theta = phi;
      end
-%    a = axes(2);
-%    b = axes(1);
     
-    cosphi = cos(theta);
-    sinphi = sin(theta);
+    cosphi = cos(pi/2);
+    sinphi = sin(pi/2);
     
-    R = [ cos(phi)   sin(phi)
-         -sin(phi)   cos(phi)];
+    R = [ cos(phi)   -sin(phi)
+         sin(phi)   cos(phi)];
 
     xy = [a*cosphi; b*sinphi];
-    xy = R'*xy;
+    xy = R*xy;
 
     xe1 = xy(1,:) + center(1);
     ye1 = xy(2,:) + center(2);
