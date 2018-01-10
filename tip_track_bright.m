@@ -2,17 +2,18 @@ clear all
 close all
 
 % Image path and input
-fname = '/home/gm/Documents/Work/Images/BF_tubes/Col6_adj.tiff';
+fname = '/home/gm/Documents/Work/Images/BF_tubes/rbohH3_p_29_adj.tiff';
 info = imfinfo(fname);
 num_images = numel(info);
 
 % Input parameters
-tol = 1; % Tolerance for tip finding algorithm (multiplier for circle diameter)
+tol = 3; % Tolerance for tip finding algorithm (multiplier for circle diameter)
 pixelsize = 0.1; % Pixel to um conversion
 gauss = 2; % Gaussian smoothing
-mult_thresh = 1.14; % Multi threshold mult to ensure mask is correct
+mult_thresh = 1; % Multi threshold - choose the correct mask number (-2,-1,0,1,2)
+interval_thresh = 0.05; % Background threshold interval. 
 npixel = 6; % Number of pixels difference from start point for straight line fit
-diamcutoff = 4; % Distance from tip for first diameter calculations (um)
+diamcutoff = 8; % Distance from tip for first diameter calculations (um)
 
 % Spline options
 nint = 100; % Number of points to fit for spline
@@ -23,93 +24,78 @@ A = imread(fname);
 B = imcrop(A);
 C = imgaussfilt(mat2gray(B),gauss);
 cutoff = multithresh(C,2);
-D = imquantize(C,[cutoff(1)*mult_thresh cutoff(2)/mult_thresh]);
+
+e1 = strel('rectangle',[8 8]);
+e2 = strel('disk',8);
+
+h = figure;
+figure(h);
+img_count = 0;
+for b = -2:2
+    range = [cutoff(1)+interval_thresh cutoff(2)-interval_thresh*b];
+    D = imquantize(C,range);
+    E = D; E(E==3) = 1; E(E==2) = 0;
+    
+    % Structuring elements and removing un-connected noise
+    F = imdilate(E,e1); F = imerode(F,e2);
+    G = bwareafilt(logical(F),1);
+    
+    % Orient image
+    if (img_count == 0)
+        type = find_orient(G);
+        if (type == 1) G = imrotate(G,-90); C = imrotate(C,-90);
+        elseif (type == 3) G = imrotate(G,90); C = imrotate(C,90);
+        elseif (type == 4) G = imrotate(G,180); C = imrotate(C,180);
+        end
+    end
+    
+    Gmax = max(find(G(:,end)==1));
+    Gmin = min(find(G(:,end)==1));
+    H = imfill(drawline(G,Gmin,size(G,2),Gmax,size(G,2),1),'holes');
+    
+    img_count = img_count+1;
+    subplot(1,5,img_count)
+    imshowpair(C,H);
+end
+mult_thresh = input('Choose image with best mask quality:');
+
+range = [cutoff(1) cutoff(2)-interval_thresh*mult_thresh];
+D = imquantize(C,range);
 E = D; E(E==3) = 1; E(E==2) = 0;
 
 % Structuring elements and removing un-connected noise
-e1 = strel('rectangle',[8 8]);
-e2 = strel('disk',8);
 F = imdilate(E,e1); F = imerode(F,e2);
-G = imfill(F,'holes');
-H = bwareafilt(logical(G),1); 
+G = bwareafilt(logical(F),1);
 
 % Orient image
-type = find_orient(H);
-if (type == 1) H = imrotate(H,-90); 
-elseif (type == 3) H = imrotate(H,90); 
-elseif (type == 4) H = imrotate(H,180); 
-end
-        
-% Extract image boundary (longest boundary)
-I = bwboundaries(H,'holes');
-for x = 1:numel(I)
-    tempbw(x) = size(I{x},1);
-end
-[pos posI] = max(tempbw);
-bound = I{posI};
-
-stats_orig = regionprops(H,'Orientation','MajorAxisLength', 'BoundingBox', ...
-    'MinorAxisLength', 'Eccentricity', 'Centroid','Area','FilledImage');
-
-Mhmax = max(find(H(:,end)==1));
-Mhmin = min(find(H(:,end)==1));
-Mwmax = min(find(H(floor(stats_orig.BoundingBox(2)+stats_orig.BoundingBox(4)),:)==1));
-Mwmin = min(find(H(ceil(stats_orig.BoundingBox(2)),:)==1));
-
-Mangle_up = atan2(abs(stats_orig.BoundingBox(2)+stats_orig.BoundingBox(4)-Mhmax),size(H,2)-Mwmax)*180/pi;
-Mangle_do = atan2(abs(Mhmin-stats_orig.BoundingBox(2)),size(H,2)-Mwmin)*180/pi;
-
-Mangle = max(abs(Mangle_up),abs(Mangle_do));
-Mratio = stats_orig.BoundingBox(4)/(Mhmax-Mhmin);
-Mxdist = 1.55 - min(0.3*(Mratio)*Mangle/15,0.25);
-
-J = H(:,1:floor(stats_orig.BoundingBox(1)+Mxdist*sum(H(:,end))));
-
-% Filled in image with the given outline
-stats = regionprops(J,'Orientation','MajorAxisLength', 'BoundingBox', ...
-    'MinorAxisLength', 'Eccentricity', 'Centroid','Area','FilledImage');
-
-% Fit an ellipse to the entire image and get the maximum point
-major = [stats.Centroid(2) + stats.MajorAxisLength*0.5 * sin(pi*stats.Orientation/180) ...
-    stats.Centroid(1) - stats.MajorAxisLength*0.5 * cos(pi*stats.Orientation/180)];
-
-% Remove points on the extreme right
-maxy = size(H,2);
-rem = find(bound(:,2) == maxy); bound(rem,:) = [];
-
-% Find points on the convex hull
-hullo = convhull(bound(:,1),bound(:,2));
-ver = [bound(hullo,1) bound(hullo,2)];
-
-% Find the diameter, midpoint at the cutoff along with the positions along
-% the entire boundary
-yedge = find(ver(:,2) == maxy-1);
-[diam start edge] = edge_quant(ver,yedge);
-vers = circshift(ver,-start);
-
-% Tip finding algorithm
-ybound = find(bound(:,2) == maxy-1);
-boundc = circshift(bound,-ybound(1));
-flag_tol = false; toln = tol;
-while(flag_tol == 0)
-    tip_new = [];
-    for i = 1:length(bound)
-        dist_val = pdist2(boundc(i,:),major(1,:));
-        if (dist_val < toln*diam) tip_new = [tip_new; boundc(i,:)]; end
-    end
-    
-    [tip_final,center,phin,axes,tip_check,fix, flag_tol] = ellipse_data(tip_new);
-    cacl = axes(1) - axes(2);
-    toln = toln - 0.1;
+type = find_orient(G);
+if (type == 1) G = imrotate(G,-90); C = imrotate(C,-90);
+elseif (type == 3) G = imrotate(G,90); C = imrotate(C,90);
+elseif (type == 4) G = imrotate(G,180); C = imrotate(C,180);
 end
 
+Gmax = max(find(G(:,end)==1));
+Gmin = min(find(G(:,end)==1));
+H = imfill(drawline(G,Gmin,size(G,2),Gmax,size(G,2),1),'holes');
 
-% Shift the entire boundary vector center at final tip
-posxf = []; posxy = []; boundb = [];
-posxf = find(boundc(:,1) == tip_final(1));
-posyf = find(boundc(:,2) == tip_final(2));
-interf = intersect(posxf,posyf);
-boundb = circshift(boundc,(-ceil(length(boundc)*0.5)-interf(1)));
+% Locate tip
+[boundo, tip_finalo, tip_newo, diam, maxyo, centero, phino, axeso] = locate_tip(H,tol);
+
+% Hole closing
+val = pdist2(tip_finalo,tip_newo);
+
+change = movmean(diff(val),5);
+for k = 1:length(change)
+    if(change(k) > 0) turnin = k; break; end
+end
+for k = length(change):-1:1
+    if(change(k) < 0) turnout = k+1; break; end
+end
+
+J = drawline(H,tip_newo(turnin,1),tip_newo(turnin,2),tip_newo(turnout,1),tip_newo(turnout,2),1);
+K = imfill(J,'holes');
+
+[boundb, tip_final, tip_new, diam, maxy, center, phin, axes] = locate_tip(K,tol);
 
 % Find the curves along the sides of the tubes
 total1 = []; total2 = [];
@@ -290,6 +276,7 @@ plot(tip_new(:,2), tip_new(:,1), 'm', 'LineWidth', 2);
 quiver(xc,yc,-dy,dx, 0, 'm')
 plot(xc, yc, 'c*', 'LineWidth', 0.5);
 %plot(center(:,2),center(:,1),'k*','LineWidth',2)
+set(gca,'Ydir','reverse')
 
 if (diamcutoff > 0)
     for i = 1:length(cut)
@@ -302,4 +289,5 @@ if (diamcutoff > 0)
     plot(distctf,diamf,'b')
     title('Diameter with distance from the tip');
 end
+
 Average_diam = mean(diamf)
