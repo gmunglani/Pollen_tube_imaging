@@ -10,10 +10,13 @@ num_images = numel(info);
 tol = 3; % Tolerance for tip finding algorithm (multiplier for circle diameter)
 pixelsize = 0.1; % Pixel to um conversion
 gauss = 2; % Gaussian smoothing
+
+% Measurements
+range_thresh = [-2,2]; % Multiplier for threshold
 interval_thresh = 0.05; % Background threshold interval. 
 npixel = 6; % Number of pixels difference from start point for straight line fit
-diamcutoff = 12; % Distance from tip for first diameter calculations (um)
 hole_close = 1; % Hole closing algorithm
+diamcutoff = 12; % Distance from tip for first diameter calculations (um)
 
 % Spline options
 nint = 100; % Number of points to fit for spline
@@ -30,36 +33,39 @@ e2 = strel('disk',8);
 
 h = figure;
 img_count = 0;
-for b = -2:2
-    range = [cutoff(1)+interval_thresh*b cutoff(2)-interval_thresh*b];
-    D = imquantize(C,range);
-    E = D; E(E==3) = 1; E(E==2) = 0;
-    
-    % Structuring elements and removing un-connected noise
-    F = imdilate(E,e1); F = imerode(F,e2);
-    G = bwareafilt(logical(F),1);
-    
-    % Orient image
-    if (img_count == 0)
-        type = find_orient(G);
-        if (type == 1) G = imrotate(G,-90); C = imrotate(C,-90);
-        elseif (type == 3) G = imrotate(G,90); C = imrotate(C,90);
-        elseif (type == 4) G = imrotate(G,180); C = imrotate(C,180);
+for a = range_thresh(1):range_thresh(2)
+    for b = range_thresh(1):range_thresh(2)
+        range = [cutoff(1)+interval_thresh*a cutoff(2)-interval_thresh*b];
+        D = imquantize(C,range);
+        E = D; E(E==3) = 1; E(E==2) = 0;
+        
+        % Structuring elements and removing un-connected noise
+        F = imdilate(E,e1); F = imerode(F,e2);
+        G = bwareafilt(logical(F),1);
+        
+        % Orient image
+        if (img_count == 0)
+            type = find_orient(G);
+            if (type == 1) G = imrotate(G,-90); C = imrotate(C,-90);
+            elseif (type == 3) G = imrotate(G,90); C = imrotate(C,90);
+            elseif (type == 4) G = imrotate(G,180); C = imrotate(C,180);
+            end
         end
+        
+        Gmax = max(find(G(:,end)==1));
+        Gmin = min(find(G(:,end)==1));
+        H = imfill(drawline(G,Gmin,size(G,2),Gmax,size(G,2),1),'holes');
+        
+        img_count = img_count+1;
+        subplot(5,5,img_count)
+        imshowpair(C,H);
     end
-    
-    Gmax = max(find(G(:,end)==1));
-    Gmin = min(find(G(:,end)==1));
-    H = imfill(drawline(G,Gmin,size(G,2),Gmax,size(G,2),1),'holes');
-    
-    img_count = img_count+1;
-    subplot(1,5,img_count)
-    imshowpair(C,H);
 end
-mult_thresh = input('Choose image with the best mask quality: ');
-close(h);
+mult_thresh1 = input('Choose image with the best mask quality (row): ');
+mult_thresh2 = input('Choose image with the best mask quality (column): ');
+close all
 
-range = [cutoff(1)+interval_thresh*mult_thresh cutoff(2)-interval_thresh*mult_thresh];
+range = [cutoff(1)+interval_thresh*mult_thresh1 cutoff(2)-interval_thresh*mult_thresh2];
 D = imquantize(C,range);
 E = D; E(E==3) = 1; E(E==2) = 0;
 

@@ -89,7 +89,7 @@ else
             BT1=zeros(size(BN1,1),size(BN1,2),smp);
             BT2=zeros(size(BN2,1),size(BN2,2),smp);
         end
-        
+         
         % Union of images to ensure perfect overlap
         B = BN1.*BN2; B(B>0) = 1;
         while(sum(B(:,end-Bedge(count))) == 0)
