@@ -7,18 +7,13 @@ function [tip_final,center,phi,axes,tip_check,n,flag_tol] = ellipse_data(tip_new
     x = tip_news(:,1);
     y = tip_news(:,2);
     
-    a = fit_ellipse(x,y);
+    a = ellipse_fit(x,y);
     center = ellipse_center(a);
     axes = ellipse_axis_length(a); 
     [phi n] = ellipse_angle_of_rotation2(a,axes);
    
     flag_tol = isreal(axes);
-    if (flag_tol == 1) 
-    
-      %  if (phi > pi/2) phi = phi - pi;
-      %  elseif (phi < -pi/2) phi = phi + pi;
-      %  end    
-    
+    if (flag_tol == 1)  
         [xe1, ye1, xe2, ye2] = ellipse_tip(center, axes, phi);
     
         diste1 = pdist2([x y],[xe1 ye1],'euclidean');
@@ -41,7 +36,7 @@ function [tip_final,center,phi,axes,tip_check,n,flag_tol] = ellipse_data(tip_new
     end
 end
 
-function a = fit_ellipse(x, y)
+function a = ellipse_fit(x, y)
     D = horzcat(x .* x, x .* y, y .* y, x, y, ones(size(x,1),1));
     S = D' * D;
     C = zeros(6, 6);
@@ -110,26 +105,28 @@ function [ang n] = ellipse_angle_of_rotation2(a, axes)
 end
 
 function [xe1, ye1, xe2, ye2] = ellipse_tip(center, axes, phi)
-     if (axes(2) > axes(1))
-         a = axes(1);
-         b = axes(2);
-     else
-         a = axes(2);
-         b = axes(1);
-     end
-    
-    cosphi = cos(pi/2);
-    sinphi = sin(pi/2);
-    
-    R = [ cos(phi)   -sin(phi)
-         sin(phi)   cos(phi)];
 
-    xy = [a*cosphi; b*sinphi];
-    xy = R*xy;
+if (axes(2) > axes(1))
+    a = axes(1);
+    b = axes(2);
+else
+    a = axes(2);
+    b = axes(1);
+end
 
-    xe1 = xy(1,:) + center(1);
-    ye1 = xy(2,:) + center(2);
-    
-    xe2 = -xy(1,:) + center(1);
-    ye2 = -xy(2,:) + center(2);
+cosphi = cos(pi/2);
+sinphi = sin(pi/2);
+
+R = [ cos(phi)   -sin(phi)
+    sin(phi)   cos(phi)];
+
+xy = [a*cosphi; b*sinphi];
+xy = R*xy;
+
+xe1 = xy(1,:) + center(1);
+ye1 = xy(2,:) + center(2);
+
+xe2 = -xy(1,:) + center(1);
+ye2 = -xy(2,:) + center(2);
+
 end

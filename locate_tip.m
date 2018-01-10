@@ -1,4 +1,4 @@
-function [boundb, tip_final, tip_new, diam, maxy, center, phin, axes] = locate_tip(H,tol)
+function [boundb, tip_final, tip_new, diam, maxy, center, phin, axes, stats, toln, major] = locate_tip(H,tol)
 
 % Extract image boundary (longest boundary)
 I = bwboundaries(H,'holes');

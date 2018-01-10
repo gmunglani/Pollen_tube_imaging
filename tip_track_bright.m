@@ -2,7 +2,7 @@ clear all
 close all
 
 % Image path and input
-fname = '/home/gm/Documents/Work/Images/BF_tubes/rbohH3_p_29_adj.tiff';
+fname = '/home/gm/Documents/Work/Images/BF_tubes/rbohH321_adj.tiff';
 info = imfinfo(fname);
 num_images = numel(info);
 
@@ -10,10 +10,10 @@ num_images = numel(info);
 tol = 3; % Tolerance for tip finding algorithm (multiplier for circle diameter)
 pixelsize = 0.1; % Pixel to um conversion
 gauss = 2; % Gaussian smoothing
-mult_thresh = 1; % Multi threshold - choose the correct mask number (-2,-1,0,1,2)
 interval_thresh = 0.05; % Background threshold interval. 
 npixel = 6; % Number of pixels difference from start point for straight line fit
-diamcutoff = 8; % Distance from tip for first diameter calculations (um)
+diamcutoff = 12; % Distance from tip for first diameter calculations (um)
+hole_close = 1; % Hole closing algorithm
 
 % Spline options
 nint = 100; % Number of points to fit for spline
@@ -29,10 +29,9 @@ e1 = strel('rectangle',[8 8]);
 e2 = strel('disk',8);
 
 h = figure;
-figure(h);
 img_count = 0;
 for b = -2:2
-    range = [cutoff(1)+interval_thresh cutoff(2)-interval_thresh*b];
+    range = [cutoff(1)+interval_thresh*b cutoff(2)-interval_thresh*b];
     D = imquantize(C,range);
     E = D; E(E==3) = 1; E(E==2) = 0;
     
@@ -57,9 +56,10 @@ for b = -2:2
     subplot(1,5,img_count)
     imshowpair(C,H);
 end
-mult_thresh = input('Choose image with best mask quality:');
+mult_thresh = input('Choose image with the best mask quality: ');
+close(h);
 
-range = [cutoff(1) cutoff(2)-interval_thresh*mult_thresh];
+range = [cutoff(1)+interval_thresh*mult_thresh cutoff(2)-interval_thresh*mult_thresh];
 D = imquantize(C,range);
 E = D; E(E==3) = 1; E(E==2) = 0;
 
@@ -77,37 +77,41 @@ end
 Gmax = max(find(G(:,end)==1));
 Gmin = min(find(G(:,end)==1));
 H = imfill(drawline(G,Gmin,size(G,2),Gmax,size(G,2),1),'holes');
+figure; imshowpair(C,H);
 
 % Locate tip
-[boundo, tip_finalo, tip_newo, diam, maxyo, centero, phino, axeso] = locate_tip(H,tol);
+[boundb, tip_final, tip_new, diam, maxy, center, phin, axes, stats, toln, major] = locate_tip(H,tol);
 
 % Hole closing
-val = pdist2(tip_finalo,tip_newo);
-
-change = movmean(diff(val),5);
-for k = 1:length(change)
-    if(change(k) > 0) turnin = k; break; end
-end
-for k = length(change):-1:1
-    if(change(k) < 0) turnout = k+1; break; end
-end
-
-J = drawline(H,tip_newo(turnin,1),tip_newo(turnin,2),tip_newo(turnout,1),tip_newo(turnout,2),1);
-K = imfill(J,'holes');
-
-[boundb, tip_final, tip_new, diam, maxy, center, phin, axes] = locate_tip(K,tol);
+if (hole_close == 1)
+    val = pdist2(tip_final,tip_new);
+    
+    change = movmean(diff(val),5);
+    for k = 1:length(change)
+        if(change(k) > 0) turnin = k; break; end
+    end
+    for k = length(change):-1:1
+        if(change(k) < 0) turnout = k+1; break; end
+    end
+    
+    J = drawline(H,tip_new(turnin,1),tip_new(turnin,2),tip_new(turnout,1),tip_new(turnout,2),1);
+    K = imfill(J,'holes');
+    
+    boundb = []; tip_new = [];
+    [boundb, tip_final, tip_new, diam, maxy, center, phin, axes, stats, toln, major] = locate_tip(K,tol);
+end 
 
 % Find the curves along the sides of the tubes
 total1 = []; total2 = [];
 range1 = ceil(length(boundb)*0.5):length(boundb);
 dist1 = diag(pdist2(boundb(range1,:),(ones(length(range1),1))*tip_final));
 postotal1 = find(dist1 > diam*0.75)+range1(1)-1;
-total1(:,:) = boundb(postotal1,:);
+total1(:,:) = boundb(linspace(postotal1(1),postotal1(end),length(postotal1)),:);
 
 range2 = ceil(length(boundb)*0.5)-1:-1:1;
 dist2 = diag(pdist2(boundb(range2,:),(ones(length(range2),1))*tip_final));
 postotal2 = range2(1)-find(dist2 > diam*0.75)+1;
-total2(:,:) = boundb(postotal2,:);
+total2(:,:) = boundb(linspace(postotal2(1),postotal2(end),length(postotal2)),:);
 
 % Ensure that both curves reach maxy
 if (max(total1(:,2)) < (maxy-1))
@@ -268,7 +272,8 @@ hold on
 plot(boundb(:,2), boundb(:,1), 'g', 'LineWidth', 2);
 %plot(major(:,2),major(:,1),'k*', 'LineWidth', 4);
 ellipse_view(center,phin,axes);
-%circledraw([round(major(:,2)) round(major(:,1))],round(tol*diam),100,':');
+%ellipse_view(stats.Centroid(2:-1:1),pi*stats.Orientation/180,[stats.MajorAxisLength/2 stats.MinorAxisLength/2]);
+circledraw([round(major(:,2)) round(major(:,1))],round(toln*diam),100,':');
 plot(tip_final(2), tip_final(1), 'r*', 'LineWidth', 4);
 plot(total1(:,2), total1(:,1), 'k', 'LineWidth', 2);
 plot(total2(:,2), total2(:,1), 'b', 'LineWidth', 2);

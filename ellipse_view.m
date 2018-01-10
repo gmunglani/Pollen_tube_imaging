@@ -7,8 +7,6 @@ xbar = center(1);
 ybar = center(2);
 
 for k = 1:length(phi)
-
-    
     if (axes(2) > axes(1))
         a = axes(1);
         b = axes(2);
