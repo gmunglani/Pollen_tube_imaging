@@ -12,7 +12,7 @@ details = 0;  % Show histograms of results in the end
 pixelsize = 0.1; % Pixel to um conversion
 npixel = 6; % Number of pixels difference from start point for straight line fit
 stp = 1; % Start frame number
-smp = 5; % End frame number
+smp = 1; % End frame number
 
 % Spline options
 nint = 100; % Number of points to fit for spline
@@ -26,7 +26,7 @@ starti = 0; % Rectangle ROI Start length / no pixelsize means percentage as a fr
 stopi = 30; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
 
 % Kymo and movie options
-path = '~/Documents/Scripts/MATLAB/tip_results/test8'; % Make movie file if string is not empty
+path = '~/Documents/Scripts/MATLAB/tip_results/test9'; % Make movie file if string is not empty
 video_intensity = 0; % Video intensity
 video_plot = 1; % Video of tip detection
 timestep = 0.25; % Frame rate of movie
@@ -53,10 +53,6 @@ else
     num_images1 = numel(info1);
     info2 = imfinfo(fname_CFP);
     num_images2 = numel(info2);
-    
-    for proc = stp:smp
-        
-    end
     
     % Crop region on the last frame
     Al = imread(fname_CFP, smp, 'Info', info1);

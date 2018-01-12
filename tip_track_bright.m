@@ -2,12 +2,12 @@ clear all
 close all
 
 % Image path and input
-fname = '/home/gm/Documents/Work/Images/BF_tubes/rbohH321_adj.tiff';
+fname = '/home/gm/Documents/Work/Images/BF_tubes/rbohH33_adj.tiff';
 info = imfinfo(fname);
 num_images = numel(info);
 
 % Input parameters
-tol = 3; % Tolerance for tip finding algorithm (multiplier for circle diameter)
+tol = 4; % Tolerance for tip finding algorithm (multiplier for circle diameter)
 pixelsize = 0.1; % Pixel to um conversion
 gauss = 2; % Gaussian smoothing
 
@@ -57,12 +57,22 @@ for a = range_thresh(1):range_thresh(2)
         H = imfill(drawline(G,Gmin,size(G,2),Gmax,size(G,2),1),'holes');
         
         img_count = img_count+1;
-        subplot(5,5,img_count)
+        thresh = range_thresh(1):1:range_thresh(2);
+        len_thresh = length(thresh);
+        subplot(len_thresh,len_thresh,img_count);
         imshowpair(C,H);
+        if (mod(img_count-1,len_thresh) == 0) 
+            posy = num2str(thresh(floor(img_count/len_thresh)+1));
+            ylabel(posy); 
+        end
+        if ((img_count+len_thresh-1) >= len_thresh^2) 
+            posx = num2str(thresh(img_count+len_thresh-len_thresh^2));
+            xlabel(posx); 
+        end
     end
 end
-mult_thresh1 = input('Choose image with the best mask quality (row): ');
-mult_thresh2 = input('Choose image with the best mask quality (column): ');
+mult_thresh1 = input(['Choose image with the best mask quality (row) [' num2str(range_thresh(1)) ' to ' num2str(range_thresh(2)) ']: ']);
+mult_thresh2 = input(['Choose image with the best mask quality (column) [' num2str(range_thresh(1)) ' to ' num2str(range_thresh(2)) ']: ']);
 close all
 
 range = [cutoff(1)+interval_thresh*mult_thresh1 cutoff(2)-interval_thresh*mult_thresh2];
