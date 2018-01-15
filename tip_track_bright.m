@@ -2,12 +2,12 @@ clear all
 close all
 
 % Image path and input
-fname = '/home/gm/Documents/Work/Images/BF_tubes/rbohH33_adj.tiff';
+fname = '/home/gm/Documents/Work/Images/BF_tubes/Col1_adj.tiff';
 info = imfinfo(fname);
 num_images = numel(info);
 
 % Input parameters
-tol = 4; % Tolerance for tip finding algorithm (multiplier for circle diameter)
+tol = 2; % Tolerance for tip finding algorithm (multiplier for circle diameter)
 pixelsize = 0.1; % Pixel to um conversion
 gauss = 2; % Gaussian smoothing
 
@@ -121,13 +121,19 @@ end
 total1 = []; total2 = [];
 range1 = ceil(length(boundb)*0.5):length(boundb);
 dist1 = diag(pdist2(boundb(range1,:),(ones(length(range1),1))*tip_final));
-postotal1 = find(dist1 > diam*0.75)+range1(1)-1;
-total1(:,:) = boundb(linspace(postotal1(1),postotal1(end),length(postotal1)),:);
+postotal1 = find(dist1 > diam*1)+range1(1)-1;
+if (~isempty(find(diff(postotal1(1:floor(length(postotal1)/2))>1))))
+    postotal1(1:find(diff(postotal1(1:floor(length(postotal1)/2))>1))) = [];
+end
+total1(:,:) = boundb(postotal1,:);
 
 range2 = ceil(length(boundb)*0.5)-1:-1:1;
 dist2 = diag(pdist2(boundb(range2,:),(ones(length(range2),1))*tip_final));
-postotal2 = range2(1)-find(dist2 > diam*0.75)+1;
-total2(:,:) = boundb(linspace(postotal2(1),postotal2(end),length(postotal2)),:);
+postotal2 = range2(1)-find(dist2 > diam*1)+1;
+if (~isempty(find(diff(postotal2(1:floor(length(postotal2)/2))>1))))
+    postotal2(1:find(diff(postotal2(1:floor(length(postotal2)/2))>1))) = [];
+end
+total2(:,:) = boundb(postotal2,:);
 
 % Ensure that both curves reach maxy
 if (max(total1(:,2)) < (maxy-1))
@@ -285,13 +291,14 @@ end
 
 figure
 hold on
-plot(boundb(:,2), boundb(:,1), 'g', 'LineWidth', 2);
-%plot(major(:,2),major(:,1),'k*', 'LineWidth', 4);
+plot(boundb(:,2), boundb(:,1), 'y', 'LineWidth', 2);
+plot(major(:,2),major(:,1),'r*', 'LineWidth', 4);
 ellipse_view(center,phin,axes);
 %ellipse_view(stats.Centroid(2:-1:1),pi*stats.Orientation/180,[stats.MajorAxisLength/2 stats.MinorAxisLength/2]);
-circledraw([round(major(:,2)) round(major(:,1))],round(toln*diam),100,':');
-plot(tip_final(2), tip_final(1), 'r*', 'LineWidth', 4);
-plot(total1(:,2), total1(:,1), 'k', 'LineWidth', 2);
+circledraw([round(tip_final(:,2)) round(tip_final(:,1))],round(diam),100,'k:');
+circledraw([round(major(:,2)) round(major(:,1))],round(toln*diam),100,'r:');
+plot(tip_final(2), tip_final(1), 'k*', 'LineWidth', 4);
+plot(total1(:,2), total1(:,1), 'g', 'LineWidth', 2);
 plot(total2(:,2), total2(:,1), 'b', 'LineWidth', 2);
 plot(tip_new(:,2), tip_new(:,1), 'm', 'LineWidth', 2);
 quiver(xc,yc,-dy,dx, 0, 'm')
