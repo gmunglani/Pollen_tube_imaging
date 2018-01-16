@@ -269,11 +269,18 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
         range1 = ceil(length(boundb)*0.5):length(boundb);
         dist1 = diag(pdist2(boundb(range1,:),(ones(length(range1),1))*tip_final(count,:)));
         postotal1 = find(dist1 > diamo*0.75)+range1(1)-1;
+        if (~isempty(find(diff(postotal1(1:floor(length(postotal1)/2))>1))))
+            postotal1(1:find(diff(postotal1(1:floor(length(postotal1)/2))>1))) = [];
+        end
         total1(:,:) = boundb(postotal1,:);
         
         range2 = ceil(length(boundb)*0.5)-1:-1:1;
         dist2 = diag(pdist2(boundb(range2,:),(ones(length(range2),1))*tip_final(count,:)));
         postotal2 = range2(1)-find(dist2 > diamo*0.75)+1;
+        postotal2 = range2(1)-find(dist2 > diam*1)+1;
+        if (~isempty(find(diff(postotal2(1:floor(length(postotal2)/2))>1))))
+            postotal2(1:find(diff(postotal2(1:floor(length(postotal2)/2))>1))) = [];
+        end
         total2(:,:) = boundb(postotal2,:);
         
         % Ensure that both curves reach maxy
