@@ -87,15 +87,22 @@ if (pre_mask == 0)
     % Structuring elements and removing un-connected noise
     F = imdilate(E,e1); F = imerode(F,e2);
     G = bwareafilt(logical(F),1);
+    
+    % Orient image
+    type = find_orient(G);
+    if (type == 1) G = imrotate(G,-90); C = imrotate(C,-90);
+    elseif (type == 3) G = imrotate(G,90); C = imrotate(C,90);
+    elseif (type == 4) G = imrotate(G,180); C = imrotate(C,180);
+    end
 else
     G = imcomplement(imbinarize(B));
-end
-
-% Orient image
-type = find_orient(G);
-if (type == 1) G = imrotate(G,-90); C = imrotate(C,-90);
-elseif (type == 3) G = imrotate(G,90); C = imrotate(C,90);
-elseif (type == 4) G = imrotate(G,180); C = imrotate(C,180);
+    
+    % Orient image
+    type = find_orient(G);
+    if (type == 1) G = imrotate(G,-90);
+    elseif (type == 3) G = imrotate(G,90);
+    elseif (type == 4) G = imrotate(G,180);
+    end
 end
 
 Gmax = max(find(G(:,end)==1));
@@ -124,6 +131,8 @@ if (hole_close == 1)
     boundb = []; tip_new = [];
     [boundb, tip_final, tip_new, diam, maxy, center, phin, axes, stats, toln, major] = locate_tip(K,tol);
 end 
+
+if (isempty(tip_new)) error('Increase the tolerance'); end
 
 % Find the curves along the sides of the tubes
 total1 = []; total2 = [];

@@ -2,17 +2,18 @@ clear all
 close all
 
 % Image path and input (MAKE SURE YOU HAVE THE RIGHT PATH)
-fname_YFP = '/home/gm/Documents/Work/Images/Ratio_tubes/YC11_YFP.tif';
-fname_CFP = '/home/gm/Documents/Work/Images/Ratio_tubes/YC11_CFP.tif';
+%fname_YFP = '/home/gm/Documents/Work/Images/Ratio_tubes/YC11_YFP.tif';
+%fname_CFP = '/home/gm/Documents/Work/Images/Ratio_tubes/YC11_CFP.tif';
+
+% Path to Mat file
+path = '~/Documents/Scripts/MATLAB/Tip_results/test9'; % Make movie file if string is not empty
+stp = 1; % Start frame number
+smp = 1; % End frame number
 
 % Input parameters
 tol = 1; % Tolerance for tip finding algorithm (multiplier for circle diameter)
-analysis = 1; % Turn on analysis mode
-details = 0;  % Show histograms of results in the end
 pixelsize = 0.1; % Pixel to um conversion
 npixel = 6; % Number of pixels difference from start point for straight line fit
-stp = 1; % Start frame number
-smp = 1; % End frame number
 
 % Spline options
 nint = 100; % Number of points to fit for spline
@@ -25,21 +26,20 @@ circle = 0; % Circle ROI as fraction of diameter
 starti = 0; % Rectangle ROI Start length / no pixelsize means percentage as a fraction of length of tube
 stopi = 30; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
 
-% Kymo and movie options
-path = '~/Documents/Scripts/MATLAB/tip_results/test9'; % Make movie file if string is not empty
-video_intensity = 0; % Video intensity
-video_plot = 1; % Video of tip detection
+% Kymo, movie and measurements options
 timestep = 0.25; % Frame rate of movie
 Cmin = 2.1; % Min pixel value
 Cmax = 2.7; % Max pixel value
 nkymo = 0; % Number of pixels line width average for kymograph (even number) (0 means no kymo)
-
-% Diameter options 
 diamcutoff = 0; % Distance from tip for first diameter calculations (um)
 
-% Registration
+% Other Options
 register = 1; % Register image
 union = 1; % Take the union of the two image masks
+video_intensity = 0; % Video intensity
+video_plot = 1; % Video of tip detection
+analysis = 1; % Turn on analysis mode
+details = 0;  % Show histograms of results in the end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Frame range
@@ -100,6 +100,7 @@ else
             BT2(:,:,count) = BN2;
         end
         
+        % Analysis
         Bsum(count) = sum(B(:));
         BN1sum(count) = nnz(BN1);
         BN2sum(count) = nnz(BN2);
@@ -107,6 +108,7 @@ else
         BF2sum(count) = nnz(BF2);
     end
     
+    % Removes zero columns at the edge of the image
     BT1 = BT1(:,1:end-max(Bedge),:);
     BT2 = BT2(:,1:end-max(Bedge),:);
     
@@ -115,7 +117,7 @@ else
     BT2 = BT2./BT1max; 
         
     % Create ratio image and output values
-    M = BT1./BT2; % Set M is equal to the channel of interest
+    M = BT1./BT2; 
     M(M==Inf) = 0;
     M(isnan(M)) = 0;
 end
