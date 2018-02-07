@@ -1,4 +1,4 @@
-function [boundb, tip_final, tip_new, diam, maxy, center, phin, axes, stats, toln, major] = locate_tip(H,tol)
+function [boundb, tip_final, tip_new, tip_check, diam, maxy, center, phin, axes, stats, toln, major] = locate_tip(H,tol, muck)
 
 % Extract image boundary (longest boundary)
 I = bwboundaries(H,'holes');
@@ -15,6 +15,7 @@ stats = regionprops(H,'Orientation','MajorAxisLength', 'BoundingBox', ...
 major = [stats.Centroid(2) + stats.MajorAxisLength*0.5 * sin(pi*stats.Orientation/180) ...
     stats.Centroid(1) - stats.MajorAxisLength*0.5 * cos(pi*stats.Orientation/180)];
 
+major = muck;
 % Remove points on the extreme right
 maxy = size(H,2);
 rem = find(bound(:,2) == maxy); bound(rem,:) = [];
