@@ -1,21 +1,18 @@
 clear all
 close all
 
-% Image path and input (MAKE SURE YOU HAVE THE RIGHT PATH)
-%fname_YFP = '/home/gm/Documents/Work/Images/Ratio_tubes/YC11_YFP.tif';
-%fname_CFP = '/home/gm/Documents/Work/Images/Ratio_tubes/YC11_CFP.tif';
-
 % Path to Mat file
 path = '~/Documents/Scripts/MATLAB/Tip_results'; % Input folder path
-fname = 'YC11'; % File name 
+fname = 'YC18'; % File name 
 stp = 1; % Start frame number
-smp = 225; % End frame number
+smp = 250; % End frame number
 
 % Input parameters
 tol = 2; % Tolerance for tip finding algorithm (multiplier for circle diameter)
 pixelsize = 0.1; % Pixel to um conversion
 npixel = 6; % Number of pixels difference from start point for straight line fit
-gauss = 1.5; % Gaussian smoothing filter
+bleach1 = 1:200; % Bleaching range YFP
+bleach2 = 1:1; % Bleaching range CFP
 
 % Spline options
 nint = 100; % Number of points to fit for spline
@@ -55,9 +52,9 @@ else
     fname_CFP = load([pathf '/' fname '_CFP.mat']);
     
     % Crop region on the last frame
-    Al = uint16(fname_YFP.arr(:,:,smp));
-    Bl = imgaussfilt(mat2gray(Al),gauss);
-    [tmp,posfront] = imcrop(Bl);
+    AC = uint16(fname_YFP.arr(:,:,smp));
+    BC = mat2gray(AC);
+    [tmp,posfront] = imcrop(BC);
     [optimizer, metric] = imregconfig('multimodal');
 
     Bedge = zeros(1,smp); Bsum = zeros(1,smp);
@@ -73,6 +70,15 @@ else
         B2 = imcrop(A2,posfront);
         
         if (register == 1) B2 = imregister(B2,B1,'translation',optimizer,metric); end
+        
+        Bu1 = uint8(single(B1).*255/4095);
+        Bu2 = uint8(single(B2).*255/4095);
+        
+        level1 = graythresh(Bu1); Bl1 = imbinarize(Bu1,level1); 
+        level2 = graythresh(Bu2); Bl2 = imbinarize(Bu2,level2);
+        
+        B1 = B1.*uint16(Bl1);
+        B2 = B2.*uint16(Bl2);
         
         % Orient image
         if (count==stp) type = find_orient(B1); end
@@ -104,6 +110,25 @@ else
         Bsum(count) = sum(B(:));
         B1sum(count) = nnz(B1);
         B2sum(count) = nnz(B2);
+        
+        Br1 = reshape(BT1(:,:,count),[numel(BT1(:,:,count)),1]);
+        Br2 = reshape(BT2(:,:,count),[numel(BT2(:,:,count)),1]);
+        
+        intensity1(count) = median(nonzeros(Br1));
+        intensity2(count) = median(nonzeros(Br2));
+    end
+
+    if(length(bleach1)>1) 
+        fit1 = fit(bleach1',intensity1(bleach1)','exp1','StartPoint',[intensity1(1),0.005]); 
+        for i = bleach1(1):smp
+            BT1(:,:,i) = BT1(:,:,i)*intensity1(1)/fit1(i);
+        end
+    end
+    if(length(bleach2)>1) 
+        fit2 = fit(bleach2',intensity2(bleach2)','exp1','StartPoint',[intensity2(1),0.005]); 
+        for i = bleach2(1):smp
+            BT2(:,:,i) = BT2(:,:,i)*intensity2(1)/fit2(i);
+        end
     end
     
     BT1 = BT1(:,1:end-max(Bedge),:);
