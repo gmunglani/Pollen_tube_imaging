@@ -2,16 +2,16 @@ clear all
 close all
 
 % Path to Mat file
-path = '~/Documents/Scripts/MATLAB/Tip_results'; % Input folder path
+path = '~/Desktop'; % Input folder path
 fname = 'YC18'; % File name 
 stp = 1; % Start frame number
-smp = 250; % End frame number
+smp = 50; % End frame number
 
 % Input parameters
 tol = 2; % Tolerance for tip finding algorithm (multiplier for circle diameter)
 pixelsize = 0.1; % Pixel to um conversion
 npixel = 6; % Number of pixels difference from start point for straight line fit
-bleach1 = 1:200; % Bleaching range YFP
+bleach1 = 1:50; % Bleaching range YFP
 bleach2 = 1:1; % Bleaching range CFP
 
 % Spline options
@@ -21,21 +21,21 @@ nbreaks = 5;% Number of spline regions
 % ROI options
 ROItype = 1; % No ROI = 0; Moving ROI = 1; Stationary ROI = 2
 split = 0; % Split ROI along center line
-circle = 0; % Circle ROI as fraction of diameter
+circle = 0.5; % Circle ROI as fraction of diameter
 starti = 0; % Rectangle ROI Start length / no pixelsize means percentage as a fraction of length of tube
-stopi = 30; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
+stopi = 1; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
 
 % Kymo, movie and measurements options
 timestep = 0.25; % Frame rate of movie
-Cmin = 2.1; % Min pixel value
-Cmax = 2.7; % Max pixel value
-nkymo = 0; % Number of pixels line width average for kymograph (even number) (0 means no kymo)
+Cmin = 3; % Min pixel value
+Cmax = 5.5; % Max pixel value
+nkymo = 3; % Number of pixels line width average for kymograph (even number) (0 means no kymo)
 diamcutoff = 0; % Distance from tip for first diameter calculations (um)
 
 % Other Options
 register = 1; % Register image
 union = 1; % Take the union of the two image masks
-video_intensity = 0; % Video intensity
+video_intensity = 1; % Video intensity
 video_plot = 1; % Video of tip detection
 analysis = 1; % Turn on analysis mode
 details = 0;  % Show histograms of results in the end
@@ -199,7 +199,9 @@ end
 
 % Make a movie and output min and max intensities of the whole stack
 if (video_intensity == 1)
-   video_processing(movie,stp,smp,BT1,BT2,framerate,timestep,Cmax,Cmin,M);
+   %video_processing(movie,stp,smp,BT1,BT2,framerate,timestep,Cmax,Cmin,M);
+      video_processing(fname,stp,smp,timestep,Cmax,Cmin,M);
+
 end
 
 % Video plot
