@@ -2,7 +2,7 @@ clear all
 close all
 
 % Path to Mat file
-path = '~/Desktop'; % Input folder path
+path = '/home/gm/Documents/Scripts/MATLAB/Tip_results'; % Input folder path
 fname = 'YC18'; % File name 
 stp = 1; % Start frame number
 smp = 50; % End frame number
@@ -200,7 +200,7 @@ end
 % Make a movie and output min and max intensities of the whole stack
 if (video_intensity == 1)
    %video_processing(movie,stp,smp,BT1,BT2,framerate,timestep,Cmax,Cmin,M);
-      video_processing(fname,stp,smp,timestep,Cmax,Cmin,M);
+      video_processing(pathf,fname,stp,smp,timestep,Cmax,Cmin,M);
 
 end
 

@@ -1,6 +1,6 @@
-function video_processing(fname,stp,smp,timestep,Cmax,Cmin,M)
+function video_processing(pathf,fname,stp,smp,timestep,Cmax,Cmin,M)
 
-movie = [fname '_Ratio.avi'];
+movie = [pathf '/' fname '_ratio.avi'];
 %movie = [movie '.png'];
 
 V = VideoWriter(movie);
@@ -20,14 +20,14 @@ L = uint8(L.*255);
 h = figure;
 figure(h);
 for count = 1:size(L,3)
-  %  h = figure;
-  %  figure(h);
+    h = figure;
+    figure(h);
     map = colormap(jet(255));
     map = vertcat([0 0 0],map);
     disp(['Video Processing:' num2str((count+stp-1))]);
     imshow(L(:,:,count),map); 
-  %  txtstr = strcat('Time(s): ',num2str((count+stp-1)*timestep));
-   % text(10,10,txtstr,'color','white')
+    txtstr = strcat('Time(s): ',num2str((count+stp-1)*timestep));
+    text(10,10,txtstr,'color','white')
     hcb = colorbar;
     set(hcb,'FontSize',20)
     set(hcb,'YTick', [0 255])
@@ -35,8 +35,8 @@ for count = 1:size(L,3)
 %    set(hcb,'YTick',[]);
     frame = getframe(gcf);
     set(gca, 'CLim', [0,255]);
- %   writeVideo(V,frame);
-   % close(h);
+    writeVideo(V,frame);
+    close(h);
 end
 %close(V);
 disp(['Cmax:' num2str(Cmax)]);
