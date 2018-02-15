@@ -1,6 +1,6 @@
-function video_processing(movie,stp,smp,BT1,BT2,timestep,Cmax,Cmin,M)
+function video_processing(fname,stp,smp,timestep,Cmax,Cmin,M)
 
-movie = [movie '.avi'];
+movie = [fname '_Ratio.avi'];
 %movie = [movie '.png'];
 
 V = VideoWriter(movie);
