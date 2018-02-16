@@ -2,16 +2,16 @@ clear all
 close all
 
 % Path to Mat file
-path = '/home/gm/Documents/Scripts/MATLAB/Tip_results'; % Input folder path
+path = '~/Desktop'; % Input folder path
 fname = 'YC18'; % File name 
 stp = 1; % Start frame number
-smp = 50; % End frame number
+smp = 800; % End frame number
 
 % Input parameters
-tol = 2; % Tolerance for tip finding algorithm (multiplier for circle diameter)
+tol = 1.5; % Tolerance for tip finding algorithm (multiplier for circle diameter)
 pixelsize = 0.1; % Pixel to um conversion
 npixel = 6; % Number of pixels difference from start point for straight line fit
-bleach1 = 1:50; % Bleaching range YFP
+bleach1 = 250:500; % Bleaching range YFP
 bleach2 = 1:1; % Bleaching range CFP
 
 % Spline options
@@ -21,24 +21,24 @@ nbreaks = 5;% Number of spline regions
 % ROI options
 ROItype = 1; % No ROI = 0; Moving ROI = 1; Stationary ROI = 2
 split = 0; % Split ROI along center line
-circle = 0.5; % Circle ROI as fraction of diameter
+circle = 0.5; % Circle ROI aCs fraction of diameter
 starti = 0; % Rectangle ROI Start length / no pixelsize means percentage as a fraction of length of tube
 stopi = 1; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
 
 % Kymo, movie and measurements options
 timestep = 0.25; % Frame rate of movie
-Cmin = 3; % Min pixel value
-Cmax = 5.5; % Max pixel value
+Cmin = 1.5; % Min pixel value
+Cmax = 4.5; % Max pixel value
 nkymo = 3; % Number of pixels line width average for kymograph (even number) (0 means no kymo)
 diamcutoff = 0; % Distance from tip for first diameter calculations (um)
 
 % Other Options
 register = 1; % Register image
 union = 1; % Take the union of the two image masks
-video_intensity = 1; % Video intensity
+video_intensity = 0; % Video intensity
 video_plot = 1; % Video of tip detection
 analysis = 1; % Turn on analysis mode
-details = 0;  % Show histograms of results in the end
+details = 1;  % Show histograms of results in the end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Frame range
@@ -145,6 +145,12 @@ else
 end
 
 if (analysis == 1)
+    h1 = figure;
+    figure(h1)
+    plot(stp:smp,intensity1,'b*')
+    hold on
+    plot(fit1,bleach1,intensity1(bleach1),'r')
+    
     h = figure;
     figure(h);
     subplot(2,2,1)
@@ -200,7 +206,7 @@ end
 % Make a movie and output min and max intensities of the whole stack
 if (video_intensity == 1)
    %video_processing(movie,stp,smp,BT1,BT2,framerate,timestep,Cmax,Cmin,M);
-      video_processing(pathf,fname,stp,smp,timestep,Cmax,Cmin,M);
+      video_processing(pathf,fname,stp,smp,timestep,Cmax,Cmin,M,BT1,BT2);
 
 end
 
