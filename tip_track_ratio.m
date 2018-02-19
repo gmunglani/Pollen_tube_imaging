@@ -3,15 +3,15 @@ close all
 
 % Path to Mat file
 path = '/home/gm/Documents/Scripts/MATLAB/Tip_results'; % Input folder path
-fname = 'YC18'; % File name 
+fname = 'Lily_4'; % File name 
 stp = 1; % Start frame number
-smp = 50; % End frame number
+smp = 2; % End frame number
 
 % Input parameters
 tol = 2; % Tolerance for tip finding algorithm (multiplier for circle diameter)
 pixelsize = 0.1; % Pixel to um conversion
 npixel = 6; % Number of pixels difference from start point for straight line fit
-bleach1 = 1:50; % Bleaching range YFP
+bleach1 = 1:1; % Bleaching range YFP
 bleach2 = 1:1; % Bleaching range CFP
 
 % Spline options
@@ -434,9 +434,9 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
                 else
                     mask = zeros(size(E,1),size(E,2));
                     if (stopi < distct)
-                        npts = round(distct/(distc(1)*pixelsize));
-                        xcir = linspace(tip_final(count,2),linec(1,2),npts);
-                        ycir = linspace(tip_final(count,1),linec(1,1),npts);
+                        npts = round(distct/(distc(min(find(distc>1)))*pixelsize));
+                        xcir = linspace(tip_final(count,2),round(linec(1,2)),npts);
+                        ycir = linspace(tip_final(count,1),round(linec(1,1)),npts);
                         distcir = diag(pdist2([tip_final(count,1)*ones(npts,1) tip_final(count,2)*ones(npts,1)], [ycir; xcir]'));
                         
                         if (pixelsize > 0)
