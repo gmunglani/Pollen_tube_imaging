@@ -66,6 +66,9 @@ else
         A1 = uint16(fname_YFP.arr(:,:,count)); 
         A2 = uint16(fname_CFP.arr(:,:,count));
         
+        A1 = imgaussfilt(A1,ceil(9*size(A1,2)/1280));
+        A2 = imgaussfilt(A2,ceil(9*size(A1,2)/1280));
+        
         B1 = imcrop(A1,posfront);
         B2 = imcrop(A2,posfront);
         
