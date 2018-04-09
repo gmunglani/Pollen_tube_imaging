@@ -2,16 +2,16 @@ clear all
 close all
 
 % Path to Mat file
-path = '/home/gm/Documents/Scripts/MATLAB/Tip_results'; % Input folder path
-fname = 'Lily_4'; % File name 
+path = '/Users/htv/Desktop/1302'; % Input folder path
+fname = 'Lily_10'; % File name 
 stp = 1; % Start frame number
-smp = 2; % End frame number
+smp = 300; % End frame number
 
 % Input parameters
 tol = 2; % Tolerance for tip finding algorithm (multiplier for circle diameter)
 pixelsize = 0.1; % Pixel to um conversion
 npixel = 6; % Number of pixels difference from start point for straight line fit
-bleach1 = 1:1; % Bleaching range YFP
+bleach1 = 1:300; % Bleaching range YFP
 bleach2 = 1:1; % Bleaching range CFP
 
 % Spline options
