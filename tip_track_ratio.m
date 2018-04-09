@@ -3,15 +3,14 @@ close all
 
 % Path to Mat file
 path = '/home/gm/Documents/Scripts/MATLAB/Tip_results'; % Input folder path
-fname = 'Lily_4'; % File name 
+fname = 'YC18'; % File name 
 stp = 1; % Start frame number
-smp = 2; % End frame number
+smp = 830; % End frame number
 
 % Input parameters
-tol = 2; % Tolerance for tip finding algorithm (multiplier for circle diameter)
 pixelsize = 0.1; % Pixel to um conversion
 npixel = 6; % Number of pixels difference from start point for straight line fit
-bleach1 = 1:1; % Bleaching range YFP
+bleach1 = 1:500; % Bleaching range YFP
 bleach2 = 1:1; % Bleaching range CFP
 
 % Spline options
@@ -19,17 +18,17 @@ nint = 100; % Number of points to fit for spline
 nbreaks = 5;% Number of spline regions
 
 % ROI options
-ROItype = 1; % No ROI = 0; Moving ROI = 1; Stationary ROI = 2
+ROItype = 0; % No ROI = 0; Moving ROI = 1; Stationary ROI = 2
 split = 0; % Split ROI along center line
 circle = 0.5; % Circle ROI as fraction of diameter
 starti = 0; % Rectangle ROI Start length / no pixelsize means percentage as a fraction of length of tube
 stopi = 1; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
 
 % Kymo, movie and measurements options
-timestep = 0.25; % Frame rate of movie
-Cmin = 3; % Min pixel value
+timestep = 1; % Frame rate of movie
+Cmin = 2; % Min pixel value
 Cmax = 5.5; % Max pixel value
-nkymo = 3; % Number of pixels line width average for kymograph (even number) (0 means no kymo)
+nkymo = 0; % Number of pixels line width average for kymograph (even number) (0 means no kymo)
 diamcutoff = 0; % Distance from tip for first diameter calculations (um)
 
 % Other Options
@@ -37,6 +36,7 @@ register = 1; % Register image
 union = 1; % Take the union of the two image masks
 video_intensity = 1; % Video intensity
 video_plot = 1; % Video of tip detection
+mask_plot = 1; % Plot the mask and overlap
 analysis = 1; % Turn on analysis mode
 details = 0;  % Show histograms of results in the end
 
@@ -48,29 +48,32 @@ if  exist([pathf '/' fname '_proc.mat'],'file') == 2
     analysis = 0;
     disp('Analysis file exists');
 else
-    fname_YFP = load([pathf '/' fname '_YFP.mat']); 
-    fname_CFP = load([pathf '/' fname '_CFP.mat']);
-    
+    fname_YFP = h5read([pathf '/' fname '_YFP.h5'],'/values');
+    fname_CFP = h5read([pathf '/' fname '_CFP.h5'],'/values');
+ 
     % Crop region on the last frame
-    AC = uint16(fname_YFP.arr(:,:,smp));
+    AC = fname_YFP(:,:,smp);
     BC = mat2gray(AC);
-    [tmp,posfront] = imcrop(BC);
+    [tmp,posfront] = imcrop(BC');
     [optimizer, metric] = imregconfig('multimodal');
 
     Bedge = zeros(1,smp); Bsum = zeros(1,smp);
+    
+    if (mask_plot == 1)
+        V2 = VideoWriter([pathf '/' fname '_mask.avi']);
+        V2.FrameRate = 1;
+        open(V2);
+    end
     
     for count = stp:smp
         % Read image and add bleach correction
         disp(['Pre Processing:' num2str(count)]);
         
-        A1 = uint16(fname_YFP.arr(:,:,count)); 
-        A2 = uint16(fname_CFP.arr(:,:,count));
+        A1 = fname_YFP(:,:,count); A1n = A1';
+        A2 = fname_CFP(:,:,count); A2n = A2';
         
-        A1 = imgaussfilt(A1,ceil(9*size(A1,2)/1280));
-        A2 = imgaussfilt(A2,ceil(9*size(A1,2)/1280));
-        
-        B1 = imcrop(A1,posfront);
-        B2 = imcrop(A2,posfront);
+        B1 = imcrop(A1n,posfront);
+        B2 = imcrop(A2n,posfront);
         
         if (register == 1) B2 = imregister(B2,B1,'translation',optimizer,metric); end
         
@@ -119,7 +122,32 @@ else
         
         intensity1(count) = median(nonzeros(Br1));
         intensity2(count) = median(nonzeros(Br2));
+             
+        h2 = figure;
+        figure(h2);
+        subplot(2,2,1)
+        hold on
+        imshow(B1, [0 max(B1(:))]);
+        subplot(2,2,2)
+        hold on
+        imshow(B2, [0 max(B2(:))]);
+        subplot(2,2,3)
+        hold on
+        imshowpair(B1,B2);
+        subplot(2,2,4)
+        axis([stp smp 0 4096])
+        plot(stp:count,intensity1(stp:count)/intensity1(stp),'b');
+        hold on
+        plot(stp:count,intensity2(stp:count)/intensity2(stp),'r');
+        title(['Median Pixel Intensity:' num2str(count)]);
+        xlabel('Frame')
+        axis tight
+        
+        frame = getframe(gcf);
+        writeVideo(V2,frame);
+        close(h2);   
     end
+    if (mask_plot == 1) close(V2); end
 
     if(length(bleach1)>1) 
         fit1 = fit(bleach1',intensity1(bleach1)','exp1','StartPoint',[intensity1(1),0.005]); 
@@ -151,11 +179,11 @@ if (analysis == 1)
     h = figure;
     figure(h);
     subplot(2,2,1)
-    plot(stp:smp,Bsum,'b');
+    plot(stp:smp,Bsum(stp:smp),'b');
     hold on
-    plot(stp:smp,B1sum,'r');
-    plot(stp:smp,B2sum,'g');
-    axis([0 smp 0.5*max(Bsum) max(Bsum)])
+    plot(stp:smp,B1sum(stp:smp),'r');
+    plot(stp:smp,B2sum(stp:smp),'g');
+    axis([stp smp 0.5*max(Bsum) max(Bsum)])
     title('Total Number of Pixels');
 
     [Mmin Mmax Mmin_prc Mmax_prc] = channel_analysis(M,smp);
@@ -164,34 +192,34 @@ if (analysis == 1)
     
     subplot(2,2,2)
     hold on
-    plot(stp:smp,Mmax,'b*')
-    plot(stp:smp,Mmax_prc,'bd')
-    plot(stp:smp,Mmin,'r*')
-    plot(stp:smp,Mmin_prc,'rd')
+    plot(stp:smp,Mmax(stp:smp),'b*')
+    plot(stp:smp,Mmax_prc(stp:smp),'bd')
+    plot(stp:smp,Mmin(stp:smp),'r*')
+    plot(stp:smp,Mmin_prc(stp:smp),'rd')
     grid on
-    axis([0 smp 0 max(Mmax)])
+    axis([stp smp 0 max(Mmax)])
     set(gca,'YMinorTick','on')
     title('Percentiles of Ratio image');
 
     subplot(2,2,3)
     hold on
-    plot(stp:smp,B1max,'b*')
-    plot(stp:smp,B1max_prc,'bd')
-    plot(stp:smp,B1min,'r*')
-    plot(stp:smp,B1min_prc,'rd')
+    plot(stp:smp,B1max(stp:smp),'b*')
+    plot(stp:smp,B1max_prc(stp:smp),'bd')
+    plot(stp:smp,B1min(stp:smp),'r*')
+    plot(stp:smp,B1min_prc(stp:smp),'rd')
     grid on      
-    axis([0 smp 0 1])
+    axis([stp smp 0 1])
     set(gca,'YMinorTick','on');
     title('Percentiles of YFP image');
     
     subplot(2,2,4)
     hold on
-    plot(stp:smp,B2max,'b*')
-    plot(stp:smp,B2max_prc,'bd')
-    plot(stp:smp,B2min,'r*')
-    plot(stp:smp,B2min_prc,'rd')
+    plot(stp:smp,B2max(stp:smp),'b*')
+    plot(stp:smp,B2max_prc(stp:smp),'bd')
+    plot(stp:smp,B2min(stp:smp),'r*')
+    plot(stp:smp,B2min_prc(stp:smp),'rd')
     grid on
-    axis([0 smp 0 1])
+    axis([stp smp 0 1])
     set(gca,'YMinorTick','on');
     title('Percentiles of CFP image');
     hold off
@@ -202,9 +230,7 @@ end
 
 % Make a movie and output min and max intensities of the whole stack
 if (video_intensity == 1)
-   %video_processing(movie,stp,smp,BT1,BT2,framerate,timestep,Cmax,Cmin,M);
       video_processing(pathf,fname,stp,smp,timestep,Cmax,Cmin,M);
-
 end
 
 % Video plot
@@ -217,25 +243,7 @@ end
 if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
     for count = stp:smp
         disp(['Image Analysis:' num2str(count)]);
-        
-        % Ratio image binarization
-        C = M(:,:,count);
-        Z = imbinarize(C,0.5);
-        T = bwmorph(Z,'thin',Inf);
-        U = bwboundaries(T);
-        Uc = U{:,:};
-        muck = Uc(1,:);
-        D = bwareafilt(Z,1);
-        
-        Ehmax = max(find(D(:,end)==1));
-        Ehmin = min(find(D(:,end)==1));
-        
-        E = imfill(drawline(D,Ehmin,size(D,2),Ehmax,size(D,2),1),'holes');
-
-        % Locate tip
-        [boundb, tip_final(count,:), tip_new, tip_check, diam, maxy, center, phin, axes, stats, toln, major] = locate_tip(E,tol, muck);
-        if (count == stp) diamo = diam; end
-
+ 
         % Find the curves along the sides of the tubes
         total1 = []; total2 = [];
         range1 = ceil(length(boundb)*0.5):length(boundb);
@@ -503,7 +511,7 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
                     end
                 end
             end
-            for n = 1:count
+            for n = stp:smp
                 for a = 1:nkymo
                     L(:,:) = M(:,:,n)./Cmax;
                     L = (L-(Cmin/Cmax))./(1-(Cmin/Cmax));
@@ -521,9 +529,11 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
             figure(h);
             hold on
             plot(boundb(:,2), boundb(:,1), 'g', 'LineWidth', 2);
-            ellipse_view(center,phin,axes);
-            circledraw([round(major(:,2)) round(major(:,1))],round((toln+0.1)*diamo),100,'k:');
-            plot(tip_final(count,2), tip_final(count,1), 'm*', 'LineWidth', 4);
+          %  ellipse_view(center,phin,axes);
+          %  circledraw([round(cenr(:,2)) round(cenr(:,1))],round((toln)*diamo),100,'k:');
+            plot(Uc(:), Ur(:),'m*', 'LineWidth', 2);
+          %  plot(round(cenr(:,2)), round(cenr(:,1)),'k*', 'LineWidth', 2);
+          %  plot(tip_final(count,2), tip_final(count,1), 'm*', 'LineWidth', 4);
             plot(tip_check(:,2), tip_check(:,1), 'b*', 'LineWidth', 4);            
             
             plot(total1(:,2), total1(:,1), 'k', 'LineWidth', 2);
@@ -566,7 +576,7 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
         
         % Images and mask visualization
         if (count == stp || count == smp)
-            if(count == stp && details == 1) 
+            if(count == stp && details == 1 && ROItype > 0) 
                 Chist1 = reshape(C,1,size(C,1)*size(C,2)); 
                 B1hist1 = reshape(BT1(:,:,count),1,size(BT1(:,:,count),1)*size(BT1(:,:,count),2));
                 B2hist1 = reshape(BT2(:,:,count),1,size(BT2(:,:,count),1)*size(BT2(:,:,count),2));
@@ -574,7 +584,7 @@ if (ROItype > 0 || nkymo > 0 || diamcutoff > 0)
                 ChistF1 = reshape(C.*F,1,size(C,1)*size(C,2)); 
                 B1histF1 = reshape(BT1(:,:,count).*F,1,size(BT1(:,:,count),1)*size(BT1(:,:,count),2));
                 B2histF1 = reshape(BT2(:,:,count).*F,1,size(BT2(:,:,count),1)*size(BT2(:,:,count),2));
-            else 
+            elseif (ROItype > 0)
                 Chist2 = reshape(C,1,size(C,1)*size(C,2)); 
                 B1hist2 = reshape(BT1(:,:,count),1,size(BT1(:,:,count),1)*size(BT1(:,:,count),2));
                 B2hist2 = reshape(BT2(:,:,count),1,size(BT2(:,:,count),1)*size(BT2(:,:,count),2));

@@ -1,4 +1,4 @@
-function [tip_final,center,phi,axes,tip_check,n,flag_tol] = ellipse_data(tip_new)
+function [tip_final,center,phi,axes,tip_check] = ellipse_data(tip_new)
 
     tip_news = zeros(length(tip_new),2);
     tip_news(:,2) = smooth(tip_new(:,2));

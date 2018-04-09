@@ -1,7 +1,6 @@
 function video_processing(pathf,fname,stp,smp,timestep,Cmax,Cmin,M)
 
 movie = [pathf '/' fname '_ratio.avi'];
-%movie = [movie '.png'];
 
 V = VideoWriter(movie);
 V.FrameRate = 1/timestep;
@@ -17,8 +16,8 @@ L = bsxfun(@rdivide, bsxfun(@minus, K, Cmin),bsxfun(@minus, 1, Cmin));
 L(L<0) = 0;
 L = uint8(L.*255);
 
-h = figure;
-figure(h);
+%h = figure;
+%figure(h);
 for count = 1:size(L,3)
     h = figure;
     figure(h);
@@ -38,7 +37,8 @@ for count = 1:size(L,3)
     writeVideo(V,frame);
     close(h);
 end
-%close(V);
+
+close(V);
 disp(['Cmax:' num2str(Cmax)]);
 disp(['Cmin:' num2str(Cmin*Cmax)]);
 
