@@ -2,15 +2,26 @@ clear all
 close all
 
 % Path to Mat file
+<<<<<<< HEAD
+path = '/Users/htv/Desktop/1302'; % Input folder path
+fname = 'Lily_10'; % File name 
+stp = 1; % Start frame number
+smp = 300; % End frame number
+=======
 path = '/home/gm/Documents/Scripts/MATLAB/Tip_results'; % Input folder path
 fname = 'YC18'; % File name 
 stp = 1; % Start frame number
 smp = 830; % End frame number
+>>>>>>> 2a80bcb6caff88c9883653214863b92874dfb78e
 
 % Input parameters
 pixelsize = 0.1; % Pixel to um conversion
 npixel = 6; % Number of pixels difference from start point for straight line fit
+<<<<<<< HEAD
+bleach1 = 1:300; % Bleaching range YFP
+=======
 bleach1 = 1:500; % Bleaching range YFP
+>>>>>>> 2a80bcb6caff88c9883653214863b92874dfb78e
 bleach2 = 1:1; % Bleaching range CFP
 
 % Spline options

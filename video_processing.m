@@ -1,4 +1,4 @@
-function video_processing(pathf,fname,stp,smp,timestep,Cmax,Cmin,M)
+function video_processing(pathf,fname,stp,smp,timestep,Cmax,Cmin,M,BT1,BT2)
 
 movie = [pathf '/' fname '_ratio.avi'];
 
@@ -21,6 +21,11 @@ L = uint8(L.*255);
 for count = 1:size(L,3)
     h = figure;
     figure(h);
+    subplot(3,1,1)
+    imagesc(BT1(:,:,count))
+    subplot(3,1,2)
+    imagesc(BT2(:,:,count))
+    subplot(3,1,3)
     map = colormap(jet(255));
     map = vertcat([0 0 0],map);
     disp(['Video Processing:' num2str((count+stp-1))]);
