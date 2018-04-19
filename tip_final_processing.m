@@ -2,10 +2,10 @@ clear all
 close all
 
 % Path to Mat file
-path = '/home/gm/Documents/Scripts/MATLAB/Tip_results'; % Input folder path
-fname = 'YC18'; % File name 
+path = '/Users/htv/Desktop/1403'; % Input folder path
+fname = 'YC_2'; % File name 
 stp = 1; % Start frame number
-smp = 830; % End frame number
+smp = 1802; % End frame number
 
 % Bleach options
 bleach1 = 1:1; % Bleaching range YFP
@@ -15,6 +15,7 @@ bleach2 = 1:1; % Bleaching range CFP
 register = 1; % Register image
 union = 1; % Take the union of the two image masks
 mask_plot = 1; % Plot the mask and overlap
+analysis = 1;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Frame range
@@ -64,9 +65,9 @@ else
         
         % Orient image
         if (count==stp) type = find_orient(B1); end
-        if (type == 1) B1 = imrotate(B1,-90); B2 = imrotate(BN2,-90);
-        elseif (type == 3) B1 = imrotate(B1,90); B2 = imrotate(BN2,90);
-        elseif (type == 4) B1 = imrotate(B1,180); B2 = imrotate(BN2,180);
+        if (type == 1) B1 = imrotate(B1,-90); B2 = imrotate(B2,-90);
+        elseif (type == 3) B1 = imrotate(B1,90); B2 = imrotate(B2,90);
+        elseif (type == 4) B1 = imrotate(B1,180); B2 = imrotate(B2,180);
         end
         
         if (count == stp)
@@ -96,11 +97,10 @@ else
         Br1 = reshape(BT1(:,:,count),[numel(BT1(:,:,count)),1]);
         Br2 = reshape(BT2(:,:,count),[numel(BT2(:,:,count)),1]);
         
-        intensity1(count) = median(nonzeros(Br1));
-        intensity2(count) = median(nonzeros(Br2));
+        intensity1(count) = median(Br1);
+        intensity2(count) = median(Br2);
              
-        h2 = figure;
-        figure(h2);
+        h2 = figure('Visible', 'off');
         subplot(2,2,1)
         hold on
         imshow(B1, [0 max(B1(:))]);
@@ -112,9 +112,9 @@ else
         imshowpair(B1,B2);
         subplot(2,2,4)
         axis([stp smp 0 4096])
-        plot(stp:count,intensity1(stp:count)/intensity1(stp),'b');
+        plot(stp:count,intensity1(stp:count),'b');
         hold on
-        plot(stp:count,intensity2(stp:count)/intensity2(stp),'r');
+        plot(stp:count,intensity2(stp:count),'r');
         title(['Median Pixel Intensity:' num2str(count)]);
         xlabel('Frame')
         axis tight
@@ -141,7 +141,7 @@ else
     BT1 = BT1(:,1:end-max(Bedge),:);
     BT2 = BT2(:,1:end-max(Bedge),:);
     
-    BT1max = max(BT1(:));
+    BT1max = max(BT1(:))
     BT1 = BT1./BT1max;
     BT2 = BT2./BT1max; 
         
