@@ -37,7 +37,7 @@ while(length(Qbr) > 0)
         Q2a2 = Q2stat(Q2ci(2)).PixelList;
         Qea = [intersect(circshift(Qel,1,2),Q2a1,'rows'); intersect(circshift(Qel,1,2),Q2a2,'rows')];
         
-        Q2m = zeros(size(Q2)); Q2m = createCirclesMask(Q2m,[Qbc(1) Qbr(1)],20);
+        Q2m = zeros(size(Q2)); Q2m = createcircles(Q2m,[Qbc(1) Qbr(1)],20);
         Q3label = Q2m.*Q2label;
         Q3stat = regionprops(Q3label,'Orientation','Area');
         
