@@ -8,7 +8,7 @@ else
     poscrossa = poscross2;
 end
 
-if (type == 1) distc = horzcat(0,distc); end
+if (type == 1) distc = horzcat(0,distc'); end
 
 dposcrossa = find(diff(poscrossa) <= 0);
 %dposcrossb = find(diff(poscrossb) <= 0)

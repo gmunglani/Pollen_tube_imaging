@@ -1,11 +1,11 @@
-function [boundb, tip_final, tip_new, tip_check, diam, maxy, center, phin, axes, stats] = locate_tip(H,tol, major)
+function [boundb, tip_final, tip_new, tip_check, diam, maxy, center, phin, axes, stats, edges] = locate_tip(H, tol, major)
 
 % Extract image boundary (longest boundary)
 I = bwboundaries(H,'holes');
 for x = 1:numel(I)
     tempbw(x) = size(I{x},1);
 end
-[pos posI] = max(tempbw);
+[tmp posI] = max(tempbw);
 bound = I{posI};
 
 stats = regionprops(H,'Orientation','MajorAxisLength', 'BoundingBox', ...
@@ -26,7 +26,7 @@ ver = [bound(hullo,1) bound(hullo,2)];
 % Find the diameter, midpoint at the cutoff along with the positions along
 % the entire boundary
 yedge = find(ver(:,2) == maxy-1);
-[diam start edge] = edge_quant(ver,yedge);
+[diam start edges] = edge_quant(ver,yedge);
 
 % Tip finding algorithm
 ybound = find(bound(:,2) == maxy-1);
@@ -40,8 +40,6 @@ for toln=tol*1.25:5:tol*2.5
     [tip_final,center,phin,axes,tip_check] = ellipse_data(tip_new);
     if (nnz(tip_final) > 0) break; end
 end
-
-
 
 % Shift the entire boundary vector center at final tip
 posxf = []; posxy = []; boundb = [];

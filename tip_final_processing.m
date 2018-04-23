@@ -4,13 +4,13 @@ close all
 % Path to h5 file
 path = '/home/gm/Documents/Scripts/MATLAB/Tip_results'; % Input folder path
 fname = 'YC11'; % File name 
-stp = 85; % Start frame number
-smp = 85; % End frame number
+stp = 1; % Start frame number
+smp = 200; % End frame number
 specific = []; % Frames to change
 
 % Bleach options
-bleachYFP = 1:1; % Bleaching range YFP (Greater than length 1 commences bleaching)
-bleachCFP = 1:1; % Bleaching range CFP (Greater than length 1 commences bleaching)
+bleachYFP = 1:200; % Bleaching range YFP (Greater than length 1 commences bleaching)
+bleachCFP = 1:200; % Bleaching range CFP (Greater than length 1 commences bleaching)
 
 % Other Options
 register = 1; % Register image
@@ -69,15 +69,15 @@ if (length(bleachYFP)+length(bleachCFP) == 2)
         AC = YFP(:,:,smp);
         BC = mat2gray(AC);
         [tmp,posfront] = imcrop(BC');
+        range = stp:smp;
         Bedge = zeros(1,smp); Bsum = zeros(1,smp);
     else
-        ostp = stp; stp = 1;
-        osmp = smp; smp = length(specific);
+        range = specific;
     end
     
     [optimizer, metric] = imregconfig('multimodal');
     
-    for count = stp:smp
+    for count = range
         % Read image and add bleach correction
         disp(['Pre Processing:' num2str(count)]);
         
@@ -99,7 +99,7 @@ if (length(bleachYFP)+length(bleachCFP) == 2)
         B2 = B2.*uint16(Bl2);
         
         % Orient image
-        if (count==stp) type = find_orient(B1); end
+        if (count==range(1)) type = find_orient(B1); end
         if (type == 1) B1 = imrotate(B1,-90); B2 = imrotate(B2,-90);
         elseif (type == 3) B1 = imrotate(B1,90); B2 = imrotate(B2,90);
         elseif (type == 4) B1 = imrotate(B1,180); B2 = imrotate(B2,180);
@@ -107,39 +107,37 @@ if (length(bleachYFP)+length(bleachCFP) == 2)
         
         % Union of images to ensure perfect overlap
         B = B1.*B2; B(B>0) = 1;
-        if (isempty(specific))
-            if (count == stp)
-                BT1=zeros(size(B1,1),size(B1,2),smp);
-                BT2=zeros(size(B2,1),size(B2,2),smp);
-            end
-            while(sum(B(:,end-Bedge(count))) == 0)
-                Bedge(count) = Bedge(count) + 1;
-            end
-        else
-            count = specific(count);
-            B = B(:,1:end-Bedge);
-            B1 = B1(:,1:end-Bedge);
-            B2 = B2(:,1:end-Bedge);
-        end
-
+        
         % Analysis
         Bsum(count,1) = sum(B(:));
         Bsum(count,2) = nnz(B1);
         Bsum(count,3) = nnz(B2);
         
-        if (union)
-            BT1(:,:,count) = B1.*B;
-            BT2(:,:,count) = B2.*B;
+        if (isempty(specific))
+            if (count == range(1))
+                BT1=zeros(size(B1,1),size(B1,2),range(end));
+                BT2=zeros(size(B2,1),size(B2,2),range(end));
+            end
+            while(sum(B(:,end-Bedge(count))) == 0)
+                Bedge(count) = Bedge(count) + 1;
+            end
         else
-            BT1(:,:,count) = B1;
-            BT2(:,:,count) = B2;
+            B = B(:,1:end-Bedge);
+            B1 = B1(:,1:end-Bedge);
+            B2 = B2(:,1:end-Bedge);
         end
         
-        Br1 = reshape(BT1(:,:,count),[numel(BT1(:,:,count)),1]);
-        Br2 = reshape(BT2(:,:,count),[numel(BT2(:,:,count)),1]);
+        if (union)
+            BR1 = B1.*B;
+            BR2 = B2.*B;
+        else
+            BR1 = B1;
+            BR2 = B2;
+        end
         
-        intensity1(count) = median(nonzeros(Br1));
-        intensity2(count) = median(nonzeros(Br2));
+        BT1(:,:,count) = BR1; intensity1(count) = median(nonzeros(BR1(:)));
+        BT2(:,:,count) = BR2; intensity2(count) = median(nonzeros(BR2(:)));
+        
         
         if (mask_plot)
             h2 = figure('visible', 'off');
@@ -169,8 +167,6 @@ if (length(bleachYFP)+length(bleachCFP) == 2)
     if (isempty(specific))
         BT1 = BT1(:,1:end-max(Bedge),:);
         BT2 = BT2(:,1:end-max(Bedge),:);
-    else
-        stp = ostp; smp = osmp;
     end
 end
 
