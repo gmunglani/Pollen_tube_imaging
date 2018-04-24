@@ -553,7 +553,7 @@ if (distributions == 1)
     
     figure
     subplot(1,2,1)
-    histogram(B1hist1(B1hist1>0.1))
+    histogram(B1hist1(B1hist1>0.1))c
     hold on; histogram(B1hist2(B1hist2>0.1))
     title('Histogram B1')
     

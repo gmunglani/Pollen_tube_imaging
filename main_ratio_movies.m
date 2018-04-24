@@ -9,8 +9,8 @@ smp = 200; % End frame number
 specific = []; % Frames to change
 
 % Bleach options
-bleachYFP = 1:200; % Bleaching range YFP (Greater than length 1 commences bleaching)
-bleachCFP = 1:200; % Bleaching range CFP (Greater than length 1 commences bleaching)
+bleachYFP = 1:1; % Bleaching range YFP (Greater than length 1 commences bleaching)
+bleachCFP = 1:1; % Bleaching range CFP (Greater than length 1 commences bleaching)
 
 % Other Options
 register = 1; % Register image
@@ -135,8 +135,8 @@ if (length(bleachYFP)+length(bleachCFP) == 2)
             BR2 = B2;
         end
         
-        BT1(:,:,count) = BR1; intensity1(count) = median(nonzeros(BR1(:)));
-        BT2(:,:,count) = BR2; intensity2(count) = median(nonzeros(BR2(:)));
+        BT1(:,:,count) = BR1; intensity1(count) = double(median(nonzeros(BR1(:))));
+        BT2(:,:,count) = BR2; intensity2(count) = double(median(nonzeros(BR2(:))));
         
         
         if (mask_plot)
