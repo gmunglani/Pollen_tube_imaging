@@ -3,9 +3,9 @@ close all
 
 % Path to Mat file
 path = '/home/gm/Documents/Scripts/MATLAB/Tip_results'; % Input folder path
-fname = 'YC11'; % File name 
+fname = 'YC_5'; % File name 
 stp = 1; % Start frame number
-smp = 210; % End frame number
+smp = 175; % End frame number
 
 % Options for analysis
 tip_plot = 1; % Video tip detection
@@ -21,7 +21,7 @@ ROItype = 1; % No ROI = 0; Moving ROI = 1; Stationary ROI = 2
 split = 1; % Split ROI along center line
 circle = 0; % Circle ROI as fraction of diameter
 starti = 0; % Rectangle ROI Start length / no pixelsize means percentage as a fraction of length of tube
-stopi = 10; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
+stopi = 60; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
 pixelsize = 0; % Pixel to um conversion
 
 % Kymo, movie and measurements options
@@ -301,24 +301,16 @@ for count = smp:-1:stp
     [poscross1, poscross2, distcf] = line_continuity(poscross1,poscross2,2,distcf);
      
     xy1 = []; xy2 = []; xy1 = total1(poscross1,:); xy2 = total2(poscross2,:); 
-    xy1 = floor(sgolayfilt(xy1,3,15)); xy2 = floor(sgolayfilt(xy2,3,15));
-    xyout = [find(xy1(:,2) > size(U,2)) find(xy2(:,2) > size(U,2))];
+    if (length(xy1) > 20)
+        xy1 = floor(sgolayfilt(xy1,3,15)); xy2 = floor(sgolayfilt(xy2,3,15));
+    end
+    xyout = vertcat(find(xy1(:,2) > size(U,2)), find(xy2(:,2) > size(U,2)));
     xy1(xyout,:) = []; xy2(xyout,:) = []; distcf(xyout) = [];
     
-    % Cutoff the tp 
+    % Cutoff the tip 
     [tmp, distpos, tmp] = intersect(distc,distcf);
     distctf = [distct(1:cut-1); distc(distpos)]; xctf = [xct(1:cut-1); xc(distpos)]; yctf = [yct(1:cut-1); yc(distpos)]; 
     linectf = [yctf xctf];
-    
-    % Cut off the tip part of the diameter calculation if necessary
-    if (pixelsize > 0) cutoffp = dsearchn(distcf',diamcutoff/pixelsize);
-    else cutoffp = dsearchn(distcf',diamcutoff);
-    end
-    if (cutoffp > 1) xy1(cutoffp-1,:) = []; xy2(cutoffp-1,:) = []; end
-
-    % Diameter of tube
-    diamf = diag(pdist2(xy1,xy2));
-    diamf_avg(count) = sum(diamf)/length(diamf);
 
     if (ROItype > 0)
         Esize = size(U);
@@ -335,8 +327,8 @@ for count = smp:-1:stp
         end
         
         % Project ROI length onto the side curves
-        [startc1,stopc1] = closest_bound(total1,xy1(:,2),xy1(:,1),max(startpos,1),max(stoppos,1));
-        [startc2,stopc2] = closest_bound(total2,xy2(:,2),xy2(:,1),max(startpos,1),max(stoppos,1));
+        [startc1,stopc1] = closest_bound(total1,xctf,yctf,max(startpos,1),max(stoppos,1));
+        [startc2,stopc2] = closest_bound(total2,xctf,yctf,max(startpos,1),max(stoppos,1));
         
         % Create masks for rectangles and circles, and include whether they are
         % normal, split or stationary
@@ -403,6 +395,16 @@ for count = smp:-1:stp
         end
     end
     
+    % Cut off the tip part of the diameter calculation if necessary
+    if (pixelsize > 0) cutoffp = dsearchn(distcf',diamcutoff/pixelsize);
+    else cutoffp = dsearchn(distcf',diamcutoff);
+    end
+    if (cutoffp > 1) xy1(cutoffp-1,:) = []; xy2(cutoffp-1,:) = []; end
+
+    % Diameter of tube
+    diamf = diag(pdist2(xy1,xy2));
+    diamf_avg(count) = sum(diamf)/length(diamf);
+    
     % Kymograph
     if (nkymo > 0)
         if (count == smp) npoints = round(distct(end)*1.1); end
@@ -433,7 +435,7 @@ for count = smp:-1:stp
             kymo(:,a) = improfile(L, linecte(:,2,a), linecte(:,1,a), double(round(distct(end))));
         end
         kymo(isnan(kymo)) = 0;
-        kymo_avg(:,count-stp+1) = vertcat(zeros((npoints - round(distct(end))),1), mean(kymo,2));
+        kymo_avg(:,count-stp+1) = vertcat(zeros((5 + npoints - round(distct(end))),1), mean(kymo,2));
     end 
 
     % Tip plot
@@ -553,7 +555,7 @@ if (distributions == 1)
     
     figure
     subplot(1,2,1)
-    histogram(B1hist1(B1hist1>0.1))c
+    histogram(B1hist1(B1hist1>0.1))
     hold on; histogram(B1hist2(B1hist2>0.1))
     title('Histogram B1')
     
