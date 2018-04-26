@@ -3,14 +3,14 @@ close all
 
 % Path to h5 file
 path = '/home/gm/Documents/Scripts/MATLAB/Tip_results'; % Input folder path
-fname = 'YC11'; % File name 
+fname = 'YC18'; % File name 
 stp = 1; % Start frame number
 smp = 200; % End frame number
 specific = []; % Frames to change
 
 % Bleach options
 bleachYFP = 1:200; % Bleaching range YFP (Greater than length 1 commences bleaching)
-bleachCFP = 1:200; % Bleaching range CFP (Greater than length 1 commences bleaching)
+bleachCFP = 1:1; % Bleaching range CFP (Greater than length 1 commences bleaching)
 
 % Other Options
 register = 1; % Register image
@@ -39,14 +39,14 @@ if (exist([pathf '_back_proc.h5'],'file') == 2)
         disp('Bleach correction'); flag = 1;
         
         if(length(bleachYFP)>1)
-            fit1 = fit(bleachYFP',intensity1(bleachYFP)','exp1','StartPoint',[intensity1(1),0.005]);
+            fit1 = fit(bleachYFP',intensity1(bleachYFP)','exp2','StartPoint',[intensity1(1),-0.005,intensity1(1)*0.5,-0.01]);
             for i = bleachYFP(1):smp
                 BT1(:,:,i) = BT1(:,:,i).*intensity1(1)/fit1(i);
             end
         end
         
         if(length(bleachCFP)>1)
-            fit2 = fit(bleachCFP',intensity2(bleachCFP)','exp1','StartPoint',[intensity2(1),0.005]);
+            fit2 = fit(bleachCFP',intensity2(bleachCFP)','exp2','StartPoint',[intensity2(1),-0.005,intensity2(1)*0.5,-0.01]);
             for i = bleachCFP(1):smp
                 BT2(:,:,i) = BT2(:,:,i).*intensity2(1)/fit2(i);
             end
@@ -81,14 +81,18 @@ if (length(bleachYFP)+length(bleachCFP) == 2)
         % Read image and add bleach correction
         disp(['Pre Processing:' num2str(count)]);
         
+        % Input from h5
         A1 = YFP(:,:,count)';
         A2 = CFP(:,:,count)';
         
+        % Crop to selection
         B1 = imcrop(A1,posfront);
         B2 = imcrop(A2,posfront);
 
+        % Register CFP to YFP
         if (register == 1) B2 = imregister(B2,B1,'translation',optimizer,metric); end
         
+        % Threshold with Otsu
         Bu1 = uint8(single(B1).*255/4095);
         Bu2 = uint8(single(B2).*255/4095);
         
@@ -108,11 +112,12 @@ if (length(bleachYFP)+length(bleachCFP) == 2)
         % Union of images to ensure perfect overlap
         B = B1.*B2; B(B>0) = 1;
         
-        % Analysis
+        % Track the number of pixels
         Bsum(count,1) = sum(B(:));
         Bsum(count,2) = nnz(B1);
         Bsum(count,3) = nnz(B2);
         
+        % Cutoff the pixels at the right edge without signal
         if (isempty(specific))
             if (count == range(1))
                 BT1=zeros(size(B1,1),size(B1,2),range(end));
@@ -127,6 +132,7 @@ if (length(bleachYFP)+length(bleachCFP) == 2)
             B2 = B2(:,1:end-Bedge);
         end
         
+        % Find the union to ensure overlap
         if (union)
             BR1 = B1.*B;
             BR2 = B2.*B;
@@ -135,10 +141,12 @@ if (length(bleachYFP)+length(bleachCFP) == 2)
             BR2 = B2;
         end
         
-        BT1(:,:,count) = BR1; intensity1(count) = median(nonzeros(BR1(:)));
-        BT2(:,:,count) = BR2; intensity2(count) = median(nonzeros(BR2(:)));
+        % Find the intensity of the YFP and CFP channels to look at
+        % bleaching
+        BT1(:,:,count) = BR1; intensity1(count) = double(median(nonzeros(BR1(:))));
+        BT2(:,:,count) = BR2; intensity2(count) = double(median(nonzeros(BR2(:))));
         
-        
+        % Plot images and intensity on a per frame basis
         if (mask_plot)
             h2 = figure('visible', 'off');
             subplot(2,2,1)
