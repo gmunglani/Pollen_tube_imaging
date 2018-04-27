@@ -40,7 +40,6 @@ while(length(Qbr) > 0)
         Q2m = zeros(size(Q2)); Q2m = createcircles(Q2m,[Qbc(1) Qbr(1)],20);
         Q3label = Q2m.*Q2label;
         Q3stat = regionprops(Q3label,'Orientation','Area');
-  %      imshow(Q3label)
         
         Q3area = [];
         for i = 1:length(Q3stat)

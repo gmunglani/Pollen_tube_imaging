@@ -3,9 +3,9 @@ close all
 
 % Path to Mat file
 path = '/Users/htv/Desktop/Background_Analysis_Results'; % Input folder path
-fname = '170614_YC_30'; % File name 
+fname = '170622_YC_6'; % File name 
 stp = 1; % Start frame number
-smp = 750; % End frame number
+smp = 216; % End frame number
 
 % Options for analysis
 tip_plot = 1; % Video tip detection
@@ -14,7 +14,7 @@ distributions = 0;  % Show histogram of results in the end
 workspace = 1; % Save workspace
 
 % Tip detection parameters
-weight = 0.3; % Distance to eliminate branches (Higher means more reliance on the tip ellipse)
+weight = 0.1; % Distance to eliminate branches (Higher means more reliance on the tip ellipse)
 
 % ROI options
 ROItype = 1; % No ROI = 0; Moving ROI = 1; Stationary ROI = 2
@@ -25,8 +25,8 @@ stopi = 60; % Rectangle/Circle ROI Stop length / no pixelsize means percentage a
 pixelsize = 0; % Pixel to um conversion
 
 % Kymo, movie and measurements options
-Cmin = 1.9; % Min pixel value
-Cmax = 3.8; % Max pixel value
+Cmin = 3.2; % Min pixel value
+Cmax = 5; % Max pixel value
 nkymo = 3; % Number of pixels line width average for kymograph (odd number) (0 means no kymo)
 diamcutoff = 0; % In pixels if pixelsize is not given
 
@@ -243,7 +243,9 @@ for count = smp:-1:stp
     Q2bline1 = bwmorph(Q2line,'branchpoints');
     if (nnz(Q2bline1) > 0) Q2line = imclose(Q2line,se2); end
     
-    [tmp, Sbpos] = max(Sbl(:,2));
+    Sbdist = pdist2(Sbl,[edges; round(mean(edges(:,1))),edges(2,2)]);
+    [tmp, Sbpos] = min(Sbdist(:,3).*Sbdist(:,1)./Sbdist(:,2));
+           
     Q2line = drawline(Q2line,round(mean(edges(:,1))),edges(2,2),Sbl(Sbpos,1),Sbl(Sbpos,2),1);
     fuse = 0;
     while(fuse == 0)
