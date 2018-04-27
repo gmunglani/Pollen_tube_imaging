@@ -2,19 +2,19 @@ clear all
 close all
 
 % Path to Mat file
-path = '/home/gm/Documents/Scripts/MATLAB/Tip_results'; % Input folder path
-fname = 'YC_5'; % File name 
+path = '/Users/htv/Desktop/Background_Analysis_Results'; % Input folder path
+fname = '170622_YC_6'; % File name 
 stp = 1; % Start frame number
-smp = 175; % End frame number
+smp = 216; % End frame number
 
 % Options for analysis
 tip_plot = 1; % Video tip detection
 video_intensity = 0; % Video intensity (value = framerate)
 distributions = 0;  % Show histogram of results in the end
-workspace = 0; % Save workspace
+workspace = 1; % Save workspace
 
 % Tip detection parameters
-weight = 0.1; % Distance to eliminate branches
+weight = 0.1; % Distance to eliminate branches (Higher means more reliance on the tip ellipse)
 
 % ROI options
 ROItype = 1; % No ROI = 0; Moving ROI = 1; Stationary ROI = 2
@@ -25,8 +25,8 @@ stopi = 60; % Rectangle/Circle ROI Stop length / no pixelsize means percentage a
 pixelsize = 0; % Pixel to um conversion
 
 % Kymo, movie and measurements options
-Cmin = 2.5; % Min pixel value
-Cmax = 6.5; % Max pixel value
+Cmin = 3.2; % Min pixel value
+Cmax = 5; % Max pixel value
 nkymo = 3; % Number of pixels line width average for kymograph (odd number) (0 means no kymo)
 diamcutoff = 0; % In pixels if pixelsize is not given
 
@@ -240,9 +240,13 @@ for count = smp:-1:stp
     
     % Find center line
     Q2line = drawline(Q2,tip_final(count,1),tip_final(count,2),Qef(1),Qef(2),1);  
-    [tmp, Sbpos] = max(Sbl(:,2));
-    Q2line = drawline(Q2line,round(mean(edges(:,1))),edges(2,2),Sbl(Sbpos,1),Sbl(Sbpos,2),1);
+    Q2bline1 = bwmorph(Q2line,'branchpoints');
+    if (nnz(Q2bline1) > 0) Q2line = imclose(Q2line,se2); end
     
+    Sbdist = pdist2(Sbl,[edges; round(mean(edges(:,1))),edges(2,2)]);
+    [tmp, Sbpos] = min(Sbdist(:,3).*Sbdist(:,1)./Sbdist(:,2));
+           
+    Q2line = drawline(Q2line,round(mean(edges(:,1))),edges(2,2),Sbl(Sbpos,1),Sbl(Sbpos,2),1);
     fuse = 0;
     while(fuse == 0)
         Q2lineo = bwconncomp(Q2line);
@@ -512,31 +516,30 @@ end
 if (ROItype > 0)
     figure
     if (split) 
+        F1ratio = intensityB1_F1(stp:smp)./intensityB2_F1(stp:smp);
         subplot(1,3,2)
         hold on
-        plot(stp:smp,intensityB1_F1(stp:smp),'b')
-        plot(stp:smp,intensityB2_F1(stp:smp),'r')
-        axis([stp-1 smp+1 min(intensityB1_F)*0.8 max(intensityB1_F)*1.25]);
-        title('Average Intensity F1 (split ROI 1)'); xlabel('Frame');
+        plot(stp:smp,F1ratio,'b')
+        axis([stp-1 smp+1 0.8 max(F1ratio(:))*1.25]);
+        title('Intensity F1 (split ROI 1)'); xlabel('Frame');
        
+        F2ratio = intensityB1_F2(stp:smp)./intensityB2_F2(stp:smp);
         subplot(1,3,3)
         hold on
-        plot(stp:smp,intensityB1_F2(stp:smp),'b')
-        plot(stp:smp,intensityB2_F2(stp:smp),'r')
-        axis([stp-1 smp+1 min(intensityB1_F)*0.8 max(intensityB1_F)*1.25]);
-        title('Average Intensity F2 (split ROI 2)'); xlabel('Frame');
+        plot(stp:smp,F2ratio,'b')
+        axis([stp-1 smp+1 0.8 max(F1ratio(:))*1.25]);
+        title('Intensity F2 (split ROI 2)'); xlabel('Frame');
        
         subplot(1,3,1); 
-        plot(stp:smp,intensityB1_F2(stp:smp)./intensityB1_F1(stp:smp),'b')
-        plot(stp:smp,intensityB2_F2(stp:smp)./intensityB2_F1(stp:smp),'r')
-        axis([stp-1 smp+1 0.5 1.5]);
-        title('Average Intensity F2 (split ROI 2)'); xlabel('Frame');
+        plot(stp:smp,F2ratio./F1ratio,'b')
+        axis([stp-1 smp+1 0.5 2]);
+        title('Intensity ratio between split ROIs'); xlabel('Frame');
     else
+        Fratio = intensityB1_F(stp:smp)./intensityB2_F(stp:smp);
         hold on
-        plot(stp:smp,intensityB1_F(stp:smp),'b')
-        plot(stp:smp,intensityB2_F(stp:smp),'r')
-        axis([stp-1 smp+1 min(intensityB1_F)*0.8 max(intensityB1_F)*1.25]);
-        title('Average Intensity F'); xlabel('Frame');
+        plot(stp:smp,Fratio,'b');
+        axis([stp-1 smp+1 0.8 max(Fratio(:))*1.25]);
+        title('Intensity F'); xlabel('Frame');
     end
 end
 
