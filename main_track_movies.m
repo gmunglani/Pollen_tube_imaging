@@ -2,31 +2,32 @@ clear all
 close all
 
 % Path to Mat file
-path = '/home/gm/Documents/Scripts/MATLAB/Tip_results'; % Input folder path
-fname = 'YC_5'; % File name 
-stp = 1; % Start frame number
-smp = 175; % End frame number
+path = '/Users/htv/Desktop/Background_Analysis_Results'; % Input folder path
+fname = 'YC_3'; % File name 
+stp = 64; % Start frame number
+smp = 64; % End frame number
 
 % Options for analysis
-tip_plot = 1; % Video tip detection
-video_intensity = 0; % Video intensity (value = framerate)
+tip_plot = 0; % Video tip detection
+video_intensity = 0; % Video intensity
+frame_rate = 0.5; % Number of seconds per frame of input video
 distributions = 0;  % Show histogram of results in the end
 workspace = 0; % Save workspace
 
 % Tip detection parameters
-weight = 0.1; % Distance to eliminate branches
+weight = 0.1; % Distance to eliminate branches (Higher means more reliance on the tip ellipse)
 
 % ROI options
 ROItype = 1; % No ROI = 0; Moving ROI = 1; Stationary ROI = 2
 split = 1; % Split ROI along center line
 circle = 0; % Circle ROI as fraction of diameter
 starti = 0; % Rectangle ROI Start length / no pixelsize means percentage as a fraction of length of tube
-stopi = 60; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
-pixelsize = 0; % Pixel to um conversion
+stopi = 10; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
+pixelsize = 0.17; % Pixel to um conversion
 
 % Kymo, movie and measurements options
 Cmin = 2.5; % Min pixel value
-Cmax = 6.5; % Max pixel value
+Cmax = 4; % Max pixel value
 nkymo = 3; % Number of pixels line width average for kymograph (odd number) (0 means no kymo)
 diamcutoff = 0; % In pixels if pixelsize is not given
 
@@ -43,9 +44,20 @@ if (tip_plot == 1)
     open(V);
 end
 
+if (nkymo > 0 || video_intensity > 0) 
+K = M(:,:,:)./Cmax;
+    K(isnan(K)) = 0;
+    Cmin_tmp = Cmin;
+    Cmin = Cmin/Cmax;
+
+    L = bsxfun(@rdivide, bsxfun(@minus, K, Cmin),bsxfun(@minus, 1, Cmin));
+    L(L<0) = 0;
+    L = uint8(L.*255);
+end
+
 % Make a movie and output min and max intensities of the whole stack
-if (video_intensity == 1)
-    video_processing(pathf,fname,stp,smp,video_intensity,Cmax,Cmin,M);
+if (video_intensity)
+    video_processing(pathf,fname,stp,smp,frame_rate,L(:,:,stp:smp),Cmin,Cmin_tmp,Cmax);
 end
 
 % Loop backwards over stack
@@ -240,9 +252,16 @@ for count = smp:-1:stp
     
     % Find center line
     Q2line = drawline(Q2,tip_final(count,1),tip_final(count,2),Qef(1),Qef(2),1);  
-    [tmp, Sbpos] = max(Sbl(:,2));
-    Q2line = drawline(Q2line,round(mean(edges(:,1))),edges(2,2),Sbl(Sbpos,1),Sbl(Sbpos,2),1);
+    Q2bline1 = bwmorph(Q2line,'branchpoints');
+    if (nnz(Q2bline1) > 0) 
+        Q2line = imclose(Q2line,se2); 
+        Q2line = bwmorph(Q2line,'thin'); 
+    end
     
+    Sbdist = pdist2(Sbl,[edges; round(mean(edges(:,1))),edges(2,2)]);
+    [tmp, Sbpos] = min(Sbdist(:,3).*Sbdist(:,1)./Sbdist(:,2));
+           
+    Q2line = drawline(Q2line,round(mean(edges(:,1))),edges(2,2),Sbl(Sbpos,1),Sbl(Sbpos,2),1);
     fuse = 0;
     while(fuse == 0)
         Q2lineo = bwconncomp(Q2line);
@@ -262,8 +281,11 @@ for count = smp:-1:stp
     [Qerline,Qecline] = find(Q2eline > 0);
     
     xct = []; yct = []; xc =[]; yc =[]; distct = []; distc = [];
-    [Q3, tmp, tmp] = branch_removal(Q2line,[Qbrline Qbcline],[Qerline Qecline],0,1);
-    Q3geo = bwdistgeodesic(logical(Q3),tip_final(count,2),tip_final(count,1),'quasi-euclidean');
+    [Q3, tmp, tmp] = branch_removal(Q2line,[Qbrline Qbcline],[Qerline Qecline],0,2);
+    Q3eline = bwmorph(Q3,'endpoints');
+    [Q3erline,Q3ecline] = find(Q3eline > 0);
+    [tmp,Q3pos] = min(Q3ecline);
+    Q3geo = bwdistgeodesic(logical(Q3),Q3ecline(Q3pos),Q3erline(Q3pos),'quasi-euclidean');
     Q3geo(isnan(Q3geo)) = 0;
     [yct, xct, distct] = find(Q3geo);
     [distct geo_order] = sort(distct);
@@ -429,10 +451,7 @@ for count = smp:-1:stp
         end
         kymo = [];
         for a = 1:nkymo
-            L(:,:) = M(:,:,count)./Cmax;
-            L = (L-(Cmin/Cmax))./(1-(Cmin/Cmax));
-            L(L<0) = 0;
-            kymo(:,a) = improfile(L, linecte(:,2,a), linecte(:,1,a), double(round(distct(end))));
+            kymo(:,a) = improfile(imgaussfilt(L(:,:,count),1.5), linecte(:,2,a), linecte(:,1,a), double(round(distct(end))));
         end
         kymo(isnan(kymo)) = 0;
         kymo_avg(:,count-stp+1) = vertcat(zeros((5 + npoints - round(distct(end))),1), mean(kymo,2));
@@ -447,6 +466,7 @@ for count = smp:-1:stp
     
     Cplot = zeros(size(Q2)); Cplot(sub2ind([size(Cplot,1) size(Cplot,2)],yctk,xctk)) = 2.*ones(size(xctk));
     for j = 1:length(xy1) Cplot = drawline(Cplot,xy1(j,1),xy1(j,2),xy2(j,1),xy2(j,2),1); end
+    Cplot(:,size(U,2)+1:end) = [];
     
     % Plot two images
     if (tip_plot) h = figure('visible', 'off');
@@ -458,14 +478,16 @@ for count = smp:-1:stp
     imagesc(image1)
     
     subplot(1,2,2)
-    image2 = U+Cplot*2;
+    image2 = U+Cplot.*2;
     if (ROItype > 0) image2 = image2 +F*4; end
     imagesc(image2);
     
     
     if (tip_plot)
-        txtstr = strcat('Time(s): ',num2str((count)));
+        txtstr = strcat('Frame: ',num2str((count)));
         text(10,10,txtstr,'color','white')
+        txtstr = strcat('Time(s): ',num2str((count*frame_rate)));
+        text(50,10,txtstr,'color','white')
         frame = getframe(gcf);
         writeVideo(V,frame);
         close(h);
@@ -512,31 +534,30 @@ end
 if (ROItype > 0)
     figure
     if (split) 
+        F1ratio = intensityB1_F1(stp:smp)./intensityB2_F1(stp:smp);
         subplot(1,3,2)
         hold on
-        plot(stp:smp,intensityB1_F1(stp:smp),'b')
-        plot(stp:smp,intensityB2_F1(stp:smp),'r')
-        axis([stp-1 smp+1 min(intensityB1_F)*0.8 max(intensityB1_F)*1.25]);
-        title('Average Intensity F1 (split ROI 1)'); xlabel('Frame');
+        plot(stp:smp,F1ratio,'b')
+        axis([stp-1 smp+1 0.8 max(F1ratio(:))*1.25]);
+        title('Intensity F1 (split ROI 1)'); xlabel('Frame');
        
+        F2ratio = intensityB1_F2(stp:smp)./intensityB2_F2(stp:smp);
         subplot(1,3,3)
         hold on
-        plot(stp:smp,intensityB1_F2(stp:smp),'b')
-        plot(stp:smp,intensityB2_F2(stp:smp),'r')
-        axis([stp-1 smp+1 min(intensityB1_F)*0.8 max(intensityB1_F)*1.25]);
-        title('Average Intensity F2 (split ROI 2)'); xlabel('Frame');
+        plot(stp:smp,F2ratio,'b')
+        axis([stp-1 smp+1 0.8 max(F1ratio(:))*1.25]);
+        title('Intensity F2 (split ROI 2)'); xlabel('Frame');
        
         subplot(1,3,1); 
-        plot(stp:smp,intensityB1_F2(stp:smp)./intensityB1_F1(stp:smp),'b')
-        plot(stp:smp,intensityB2_F2(stp:smp)./intensityB2_F1(stp:smp),'r')
-        axis([stp-1 smp+1 0.5 1.5]);
-        title('Average Intensity F2 (split ROI 2)'); xlabel('Frame');
+        plot(stp:smp,F2ratio./F1ratio,'b')
+        axis([stp-1 smp+1 0.5 2]);
+        title('Intensity ratio between split ROIs'); xlabel('Frame');
     else
+        Fratio = intensityB1_F(stp:smp)./intensityB2_F(stp:smp);
         hold on
-        plot(stp:smp,intensityB1_F(stp:smp),'b')
-        plot(stp:smp,intensityB2_F(stp:smp),'r')
-        axis([stp-1 smp+1 min(intensityB1_F)*0.8 max(intensityB1_F)*1.25]);
-        title('Average Intensity F'); xlabel('Frame');
+        plot(stp:smp,Fratio,'b');
+        axis([stp-1 smp+1 0.8 max(Fratio(:))*1.25]);
+        title('Intensity F'); xlabel('Frame');
     end
 end
 

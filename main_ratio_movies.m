@@ -2,20 +2,21 @@ clear all
 close all
 
 % Path to h5 file
-path = '/home/gm/Documents/Scripts/MATLAB/Tip_results'; % Input folder path
-fname = 'YC18'; % File name 
+path = '/Users/htv/Desktop/Background_Analysis_Results'; % Input folder path
+fname = 'YC_3'; % File name 
 stp = 1; % Start frame number
-smp = 200; % End frame number
+smp = 1713; % End frame number
 specific = []; % Frames to change
 
 % Bleach options
-bleachYFP = 1:200; % Bleaching range YFP (Greater than length 1 commences bleaching)
-bleachCFP = 1:1; % Bleaching range CFP (Greater than length 1 commences bleaching)
+bleachYFP = 1:1713; % Bleaching range YFP (Greater than length 1 commences bleaching)
+bleachCFP = 1:1713; % Bleaching range CFP (Greater than length 1 commences bleaching)
 
 % Other Options
 register = 1; % Register image
 union = 1; % Take the union of the two image masks
 mask_plot = 1; % Plot the mask and overlap
+h5_file = 1; % Save h5_file
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Frame range
@@ -183,28 +184,30 @@ M = BT1./BT2;
 M(M==Inf) = 0;
 M(isnan(M)) = 0;
 
-% Write h5 file and delete old files
-if (flag) name = [pathf '_back_proc_bleach.h5'];
-else name = [pathf '_back_proc.h5'];
+if (h5_file)
+    % Write h5 file and delete old files
+    if (flag) name = [pathf '_back_proc_bleach.h5'];
+    else name = [pathf '_back_proc.h5'];
+    end
+
+    delete(name);
+    h5create(name,'/M',size(M));
+    h5create(name,'/BT1',size(BT1));
+    h5create(name,'/BT2',size(BT2));
+    h5create(name,'/intensity1',size(intensity1));
+    h5create(name,'/intensity2',size(intensity2));
+    h5create(name,'/Bsum',size(Bsum));
+
+    h5write(name,'/M',double(M));
+    h5writeatt(name,'/M','Crop',posfront);
+    h5writeatt(name,'/M','Bedge',max(Bedge));
+
+    h5write(name,'/BT1',uint16(BT1));
+    h5write(name,'/BT2',uint16(BT2));
+    h5write(name,'/intensity1',intensity1);
+    h5write(name,'/intensity2',intensity2);
+    h5write(name,'/Bsum',Bsum);
 end
-
-delete(name);
-h5create(name,'/M',size(M));
-h5create(name,'/BT1',size(BT1));
-h5create(name,'/BT2',size(BT2));
-h5create(name,'/intensity1',size(intensity1));
-h5create(name,'/intensity2',size(intensity2));
-h5create(name,'/Bsum',size(Bsum));
-
-h5write(name,'/M',uint16(M));
-h5writeatt(name,'/M','Crop',posfront);
-h5writeatt(name,'/M','Bedge',max(Bedge));
-
-h5write(name,'/BT1',uint16(BT1));
-h5write(name,'/BT2',uint16(BT2));
-h5write(name,'/intensity1',intensity1);
-h5write(name,'/intensity2',intensity2);
-h5write(name,'/Bsum',Bsum);
 
 % Plotting signal results and decay
 h = figure;
@@ -221,14 +224,15 @@ BT1max = max(BT1(:));
 BT1 = BT1./BT1max;
 BT2 = BT2./BT1max;
     
-[Mmin Mmax Mmin_prc Mmax_prc] = channel_analysis(M,smp);
-[B1min B1max B1min_prc B1max_prc] = channel_analysis(BT1,smp);
-[B2min B2max B2min_prc B2max_prc] = channel_analysis(BT2,smp);
+[Mmin Mmax Mmin_prc Mmax_prc Mmed] = channel_analysis(M,smp);
+[B1min B1max B1min_prc B1max_prc B1med] = channel_analysis(BT1,smp);
+[B2min B2max B2min_prc B2max_prc B2med] = channel_analysis(BT2,smp);
 
 subplot(2,2,2)
 hold on
 plot(stp:smp,Mmax(stp:smp),'b*')
 plot(stp:smp,Mmax_prc(stp:smp),'bd')
+plot(stp:smp,Mmed(stp:smp),'k*')
 plot(stp:smp,Mmin(stp:smp),'r*')
 plot(stp:smp,Mmin_prc(stp:smp),'rd')
 grid on
@@ -240,6 +244,7 @@ subplot(2,2,3)
 hold on
 plot(stp:smp,B1max(stp:smp),'b*')
 plot(stp:smp,B1max_prc(stp:smp),'bd')
+plot(stp:smp,B1med(stp:smp),'k*')
 plot(stp:smp,B1min(stp:smp),'r*')
 plot(stp:smp,B1min_prc(stp:smp),'rd')
 grid on
@@ -251,6 +256,7 @@ subplot(2,2,4)
 hold on
 plot(stp:smp,B2max(stp:smp),'b*')
 plot(stp:smp,B2max_prc(stp:smp),'bd')
+plot(stp:smp,B2med(stp:smp),'k*')
 plot(stp:smp,B2min(stp:smp),'r*')
 plot(stp:smp,B2min_prc(stp:smp),'rd')
 grid on
