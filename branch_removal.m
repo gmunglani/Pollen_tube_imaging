@@ -61,7 +61,14 @@ while(length(Qbr) > 0)
             Q3diff(l) = 180 + Q3diff(l);
             Q3diff = abs(circshift(Q3diff,2));
             [Q3diffs, Q3di] = sort(Q3diff);
-            Q3min =  Q3di(1);
+            if (close_dist == 2 && Q2ci(1) == Q3di(1))
+                Q3cdiff = diff(Q2cen); Q3cdiff(3) = Q2cen(1)-Q2cen(3);
+                [tmp,Q3cdiffp] = min(abs(Q3cdiff));
+                
+                Q3min = Q3di(2);
+            else
+                Q3min =  Q3di(1);
+            end
         end
         
         % Find edges
@@ -82,7 +89,7 @@ while(length(Qbr) > 0)
             Qarea = 1/Qarea;
         end
         
-        if(Q3diffs(2) - Q3diffs(1) >= angdiff*0.25 && Q3diffs(3) > angdiff && close_dist == 1)
+        if(Q3diffs(2) - Q3diffs(1) >= angdiff*0.25 && Q3diffs(3) > angdiff && close_dist > 0)
             Q3label(find(Q3label == Q3min)) = 0;
             Q3label(find(Q3label > 0 )) = 1;
             Q4bridge = Q3label;
@@ -94,7 +101,7 @@ while(length(Qbr) > 0)
             Q2label(find(Q2label == Q3min)) = 0;
             Q2 = Q2label + Q4extra;
             Q2(find(Q2 > 0 )) = 1;
-            Qea(2,:) = [];
+            if (size(Qea,1) > 1) Qea(2,:) = []; end
         else
             Q2 = Qtmp;         
         end

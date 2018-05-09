@@ -31,14 +31,16 @@ yedge = find(ver(:,2) == maxy-1);
 % Tip finding algorithm
 ybound = find(bound(:,2) == maxy-1);
 boundc = circshift(bound,-ybound(1));
-for toln=tol*1.25:5:tol*2.5
+
+toln = tol*1.25; tip_final = [0 0];
+while (nnz(tip_final) == 0)
     tip_new = []; 
     for i = 1:length(bound)
         dist_val = pdist2(boundc(i,:),major(1,:));
         if (dist_val < toln) tip_new = [tip_new; boundc(i,:)]; end
     end
     [tip_final,center,phin,axes,tip_check] = ellipse_data(tip_new);
-    if (nnz(tip_final) > 0) break; end
+    toln = toln + 5;
 end
 
 % Shift the entire boundary vector center at final tip
@@ -46,4 +48,5 @@ posxf = []; posxy = []; boundb = [];
 posxf = find(boundc(:,1) == tip_final(1));
 posyf = find(boundc(:,2) == tip_final(2));
 interf = intersect(posxf,posyf);
+
 boundb = circshift(boundc,(-ceil(length(boundc)*0.5)-interf(1)));
