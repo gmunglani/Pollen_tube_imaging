@@ -2,20 +2,20 @@ clear all
 close all
 
 % Path to Mat file
-path = '/Users/htv/Desktop/Background_Analysis_Results'; % Input folder path
+path = '/home/gm/Documents/Scripts/MATLAB/Tip_results/'; % Input folder path
 fname = 'YC_3'; % File name 
-stp = 64; % Start frame number
-smp = 64; % End frame number
+stp = 1435; % Start frame number
+smp = 1435; % End frame number
 
 % Options for analysis
 tip_plot = 0; % Video tip detection
 video_intensity = 0; % Video intensity
 frame_rate = 0.5; % Number of seconds per frame of input video
 distributions = 0;  % Show histogram of results in the end
-workspace = 0; % Save workspace
+workspace = 1; % Save workspace
 
 % Tip detection parameters
-weight = 0.1; % Distance to eliminate branches (Higher means more reliance on the tip ellipse)
+weight = 0; % Distance to eliminate branches (Higher means more reliance on the tip ellipse), 0 follows only the thinned edge.
 
 % ROI options
 ROItype = 1; % No ROI = 0; Moving ROI = 1; Stationary ROI = 2
@@ -155,7 +155,10 @@ for count = smp:-1:stp
     close_dist = 0; 
     if (count == smp) diamo = diam; end
     if (pdist2(Qef,Sbf) > weight*diamo) close_dist = 1; end
-    [S2,Sef,S2area] = branch_removal(S,Sbf,Sel,75,close_dist);
+    if (weight == 0) kill_angle = 0;
+    else kill_angle = 75;
+    end
+    [S2,Sef,S2area] = branch_removal(S,Sbf,Sel,kill_angle,close_dist);
         
     % If more than 2 branches, further evaluation is needed
     if (size(Sef,1) > 1)
@@ -255,13 +258,27 @@ for count = smp:-1:stp
     Q2bline1 = bwmorph(Q2line,'branchpoints');
     if (nnz(Q2bline1) > 0) 
         Q2line = imclose(Q2line,se2); 
-        Q2line = bwmorph(Q2line,'thin'); 
+        Q2line = bwmorph(Q2line,'thin',Inf); 
     end
     
-    Sbdist = pdist2(Sbl,[edges; round(mean(edges(:,1))),edges(2,2)]);
-    [tmp, Sbpos] = min(Sbdist(:,3).*Sbdist(:,1)./Sbdist(:,2));
-           
-    Q2line = drawline(Q2line,round(mean(edges(:,1))),edges(2,2),Sbl(Sbpos,1),Sbl(Sbpos,2),1);
+    Sbdist = [];
+    if (count == smp)
+        Sbdist = pdist2(Sbl,[edges; round(mean(edges(:,1))),edges(2,2)]);
+        [tmp, Sbpos] = min(Sbdist(:,3).*Sbdist(:,1)./Sbdist(:,2));
+    else 
+        Sbdist = pdist2(Sbl,Sb_last);  
+        [tmp, Sbpos] = min(Sbdist);        
+    end
+    Sb_last = Sbl(Sbpos,:);
+
+    Q2line = drawline(Q2line,round(mean(edges(:,1))),edges(2,2),Sb_last(:,1),Sb_last(:,2),1);
+    Q2bline2 = bwmorph(Q2line,'branchpoints');
+    if (nnz(Q2bline2) > 0) 
+        Q2line = imclose(Q2line,se2);
+        Q2line = bwmorph(Q2line,'hbreak');
+        Q2line = bwmorph(Q2line,'thin',Inf); 
+    end
+    
     fuse = 0;
     while(fuse == 0)
         Q2lineo = bwconncomp(Q2line);
@@ -282,6 +299,7 @@ for count = smp:-1:stp
     
     xct = []; yct = []; xc =[]; yc =[]; distct = []; distc = [];
     [Q3, tmp, tmp] = branch_removal(Q2line,[Qbrline Qbcline],[Qerline Qecline],0,2);
+    
     Q3eline = bwmorph(Q3,'endpoints');
     [Q3erline,Q3ecline] = find(Q3eline > 0);
     [tmp,Q3pos] = min(Q3ecline);
@@ -299,20 +317,21 @@ for count = smp:-1:stp
     xc = xct(cut:end); yc = yct(cut:end); distc = distct(cut:end); 
     
     % Calculate the gradient of the center line to get the normals
-    dx = gradient(xc);
-    dy = gradient(yc);
-    
+    dx = gradient(xc); dx(find(dx == 0)) = 0.01;
+    dy = gradient(yc); dy(find(dy == 0)) = 0.01;
+
     % Finding the points where the normals hit the edge curves
     poscross1 = []; poscross2 = [];
     for n = 1:length(xc)
-        nfitc = polyfit(vertcat(xc(n),(xc(n) - dy(n))),vertcat(yc(n),(yc(n) + dx(n))),1);
-        if (n == 1) start_nfitc(:,:) = nfitc(:,:); end
+        nfitc = fit(vertcat(xc(n),(xc(n) - dy(n))),vertcat(yc(n),(yc(n) + dx(n))),'poly1');
+    
+        if (n == 1) start_nfitc(:,:) = [nfitc.p1 nfitc.p2]; end
         
-        edge1 = total1(:,1) - nfitc(1).*total1(:,2) - nfitc(2);
+        edge1 = total1(:,1) - nfitc.p1.*total1(:,2) - nfitc.p2;
         [tmp cross1] = min(abs(edge1));
         poscross1(n) = cross1;
         
-        edge2 = total2(:,1) - nfitc(1).*total2(:,2) - nfitc(2);
+        edge2 = total2(:,1) - nfitc.p1.*total2(:,2) - nfitc.p2;
         [tmp cross2] = min(abs(edge2));
         poscross2(n) = cross2;
     end
@@ -476,18 +495,19 @@ for count = smp:-1:stp
     subplot(1,2,1)
     image1 = U+S2*2+Splot*4;
     imagesc(image1)
+    if (tip_plot) 
+        txtstr = strcat('Time(s): ',num2str((count*frame_rate)));
+        text(10,10,txtstr,'color','white')
+    end
     
     subplot(1,2,2)
     image2 = U+Cplot.*2;
     if (ROItype > 0) image2 = image2 +F*4; end
     imagesc(image2);
     
-    
     if (tip_plot)
         txtstr = strcat('Frame: ',num2str((count)));
         text(10,10,txtstr,'color','white')
-        txtstr = strcat('Time(s): ',num2str((count*frame_rate)));
-        text(50,10,txtstr,'color','white')
         frame = getframe(gcf);
         writeVideo(V,frame);
         close(h);

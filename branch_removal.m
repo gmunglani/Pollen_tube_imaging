@@ -15,21 +15,24 @@ while(length(Qbr) > 0)
         Q2area = [Q2area Q2stat(i).Area];
         Q2cen = [Q2cen Q2stat(i).Centroid(1)];
     end
-
-    if (angdiff > 0)
-        [tmp, Q2ai] = sort(Q2area);
-        Qarea = bwarea(Q2label(Q2label == Q2ai(1)))/bwarea(Q2label(Q2label == Q2ai(2)));
-    end
     
     Qea = [];
     if (length(Q2stat) < 3)
         [tmp Q2pos] = min(Q2cen);
         Qea = intersect(circshift(Qel,1,2),Q2stat(Q2pos).PixelList,'rows');
         
-        Q2(Qbr(1),Qbc(1)) = 1;
-        Q2 = bwmorph(Q2,'bridge');
-        Q2 = bwmorph(Q2,'clean');
-        Q2 = bwmorph(Q2,'thin');
+        Q2m = zeros(size(Q2)); Q2m = createcircles(Q2m,[Qbc(1) Qbr(1)],3);
+        Q3label = Q2m.*Q2;
+        Q4bridge = Q3label;
+        
+        Q4bridge(Qbr(1),Qbc(1)) = 1;
+        Q4bridge = bwmorph(Q4bridge,'bridge');
+        Q4bridge = bwmorph(Q4bridge,'clean');
+        Q4bridge = bwmorph(Q4bridge,'thin');
+        Q4extra = Q4bridge - Q3label;
+        Q2 = Q2 + Q4extra;
+        Q2(find(Q2 > 0 )) = 1;   
+
         Qbr(1) = []; Qbc(1) = [];
     else
         [tmp, Q2ci] = sort(Q2cen);
@@ -40,16 +43,15 @@ while(length(Qbr) > 0)
         Q2m = zeros(size(Q2)); Q2m = createcircles(Q2m,[Qbc(1) Qbr(1)],20);
         Q3label = Q2m.*Q2label;
         Q3stat = regionprops(Q3label,'Orientation','Area');
-        
+            
         Q3area = [];
         for i = 1:length(Q3stat)
             Q3area = [Q3area Q3stat(i).Area];
         end
-        
-        [Q3areamin Q3areai] = min(Q3area);
-        
+        [Q3areamin Q3ai] = min(Q3area);
+
         if (Q3areamin < 4) 
-            Q3min = Q3areai;
+            Q3min = Q3ai;
             Q3diffs = [1 2 1];
         else
             % Angle check
@@ -61,16 +63,22 @@ while(length(Qbr) > 0)
             Q3diff(l) = 180 + Q3diff(l);
             Q3diff = abs(circshift(Q3diff,2));
             [Q3diffs, Q3di] = sort(Q3diff);
-            if (close_dist == 2 && Q2ci(1) == Q3di(1))
+            Q3min = Q3di(1);
+            if (close_dist == 2)
                 Q3cdiff = diff(Q2cen); Q3cdiff(3) = Q2cen(1)-Q2cen(3);
-                [tmp,Q3cdiffp] = min(abs(Q3cdiff));
-                
-                Q3min = Q3di(2);
-            else
-                Q3min =  Q3di(1);
+                Q3cdiff = abs(circshift(Q3cdiff,2));
+                [tmp,Q3cdi] = min(abs(Q3cdiff));
+                if (Q3cdi == Q3di(1)) Q3min = Q3di(2); end
+            elseif (close_dist == 1)
+                if (Q2ci(1) == Q3di(1)) Q3min = Q3di(2); end
             end
         end
         
+        if (angdiff > 0)
+            [tmp, Q2ai] = sort(Q2area);
+            Qarea = bwarea(Q2label(Q2label == Q2ai(1)))/bwarea(Q2label(Q2label == Q2ai(2)));
+        end
+    
         % Find edges
         Q2ci(find(Q2ci == Q3min)) = [];
         Q3a1 = Q2stat(Q2ci(1)).PixelList;
@@ -93,6 +101,7 @@ while(length(Qbr) > 0)
             Q3label(find(Q3label == Q3min)) = 0;
             Q3label(find(Q3label > 0 )) = 1;
             Q4bridge = Q3label;
+
             Q4bridge(Qbr(1),Qbc(1)) = 1;
             Q4bridge = bwmorph(Q4bridge,'bridge');
             Q4bridge = bwmorph(Q4bridge,'clean');
@@ -103,7 +112,7 @@ while(length(Qbr) > 0)
             Q2(find(Q2 > 0 )) = 1;
             if (size(Qea,1) > 1) Qea(2,:) = []; end
         else
-            Q2 = Qtmp;         
+            Q2 = Qtmp;
         end
         Qbr(1) = []; Qbc(1) = [];
     end
