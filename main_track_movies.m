@@ -2,32 +2,32 @@ clear all
 close all
 
 % Path to Mat file
-path = '/home/gm/Documents/Scripts/MATLAB/Tip_results/'; % Input folder path
-fname = 'YC_3'; % File name 
-stp = 1435; % Start frame number
-smp = 1435; % End frame number
+path = '/Users/htv/Desktop/Background_Analysis_Results'; % Input folder path
+fname = 'YC11'; % File name 
+stp = 1; % Start frame number
+smp = 120; % End frame number
 
 % Options for analysis
-tip_plot = 0; % Video tip detection
+tip_plot = 1; % Video tip detection
 video_intensity = 0; % Video intensity
-frame_rate = 0.5; % Number of seconds per frame of input video
+frame_rate = 2; % Number of seconds per frame of input video
 distributions = 0;  % Show histogram of results in the end
-workspace = 1; % Save workspace
+workspace = 0; % Save workspace
 
 % Tip detection parameters
-weight = 0; % Distance to eliminate branches (Higher means more reliance on the tip ellipse), 0 follows only the thinned edge.
+weight = 0.02; % Distance to eliminate branches (Higher means more reliance on the tip ellipse), 0 follows only the thinned edge.
 
 % ROI options
 ROItype = 1; % No ROI = 0; Moving ROI = 1; Stationary ROI = 2
 split = 1; % Split ROI along center line
 circle = 0; % Circle ROI as fraction of diameter
 starti = 0; % Rectangle ROI Start length / no pixelsize means percentage as a fraction of length of tube
-stopi = 10; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
+stopi = 4; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
 pixelsize = 0.17; % Pixel to um conversion
 
 % Kymo, movie and measurements options
-Cmin = 2.5; % Min pixel value
-Cmax = 4; % Max pixel value
+Cmin = 3.8; % Min pixel value
+Cmax = 6; % Max pixel value
 nkymo = 3; % Number of pixels line width average for kymograph (odd number) (0 means no kymo)
 diamcutoff = 0; % In pixels if pixelsize is not given
 
@@ -45,19 +45,25 @@ if (tip_plot == 1)
 end
 
 if (nkymo > 0 || video_intensity > 0) 
-K = M(:,:,:)./Cmax;
+    K = M(:,:,:)./Cmax;
     K(isnan(K)) = 0;
     Cmin_tmp = Cmin;
     Cmin = Cmin/Cmax;
 
     L = bsxfun(@rdivide, bsxfun(@minus, K, Cmin),bsxfun(@minus, 1, Cmin));
     L(L<0) = 0;
+    L(L>1) = 1;
+    
+    %for i=stp:smp
+    %    Ld(:,:,i) = bfilter2(L(:,:,i), 5, 0.1);
+    %end
+    Ld = uint8(L.*255);
     L = uint8(L.*255);
 end
 
 % Make a movie and output min and max intensities of the whole stack
 if (video_intensity)
-    video_processing(pathf,fname,stp,smp,frame_rate,L(:,:,stp:smp),Cmin,Cmin_tmp,Cmax);
+    video_processing(pathf,fname,stp,smp,frame_rate,Ld(:,:,stp:smp),Cmin,Cmin_tmp,Cmax);
 end
 
 % Loop backwards over stack
@@ -98,7 +104,7 @@ for count = smp:-1:stp
     [Qbr,Qbc] = find(Qb > 0);
     if (Qbr > 0)
         Qbf = [Qbr Qbc];
-        [Q2, Qef, tmp] = branch_removal(Q,Qbf,Qel,0,1);
+        [Q2, Qef, tmp] = branch_removal(Q,Qbf,Qel,0,3);
     else 
         Q2 = Q;
         [tmp,Qepos] = max(Qec);
@@ -147,14 +153,17 @@ for count = smp:-1:stp
     
     % Find branch point closest to thin edge
     if (last_flag == 0) Sbf = Sbl(dsearchn(Sbl,Qef),:);
-    else [tmp, Sbmin] = min(pdist2(Sbl,tip_final_last) + pdist2(Sbl,Qef));
+    else
+        [tmp, Sbmin] = min(pdist2(Sbl,tip_final_last) + pdist2(Sbl,Qef));
         Sbf = Sbl(Sbmin,:);
+        [tmp, Sls] = sort(pdist2(Sel,tip_final_last));
+        Sel = Sel(Sls(1:2),:);
     end
     
     % Try and remove branches within some parameters
     close_dist = 0; 
     if (count == smp) diamo = diam; end
-    if (pdist2(Qef,Sbf) > weight*diamo) close_dist = 1; end
+    if (pdist2(Qef,Sbf) > weight*diamo) close_dist = 3; end
     if (weight == 0) kill_angle = 0;
     else kill_angle = 75;
     end
@@ -164,7 +173,7 @@ for count = smp:-1:stp
     if (size(Sef,1) > 1)
         % Voting to decide which branch to be chosen as closer to the tip
         [tmp, skel_ellipsepos] = min(pdist2(Sef,tip_ellipsef));
-        if (last_flag == 1)
+        if (last_flag)
             [tmp, skel_lastpos] = min(pdist2(Sef,tip_final_last));
             if ((skel_lastpos+skel_ellipsepos+1) > 4) choice = 2; else choice = 1; end
         else 
@@ -470,7 +479,7 @@ for count = smp:-1:stp
         end
         kymo = [];
         for a = 1:nkymo
-            kymo(:,a) = improfile(imgaussfilt(L(:,:,count),1.5), linecte(:,2,a), linecte(:,1,a), double(round(distct(end))));
+            kymo(:,a) = improfile(Ld(:,:,count), linecte(:,2,a), linecte(:,1,a), double(round(distct(end))));
         end
         kymo(isnan(kymo)) = 0;
         kymo_avg(:,count-stp+1) = vertcat(zeros((5 + npoints - round(distct(end))),1), mean(kymo,2));

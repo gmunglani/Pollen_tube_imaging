@@ -12,7 +12,7 @@ for count = 1:size(L,3)
     map = colormap(jet(255));
     map = vertcat([0 0 0],map);
     disp(['Video Processing:' num2str((count+stp-1))]);
-    imshow(imgaussfilt(L(:,:,count),1.5),map); 
+    imshow(L(:,:,count),map); 
     txtstr = strcat('Time(s): ',num2str((count+stp-1)*timestep));
     text(10,10,txtstr,'color','white')
     hcb = colorbar;

@@ -3,14 +3,14 @@ close all
 
 % Path to h5 file
 path = '/Users/htv/Desktop/Background_Analysis_Results'; % Input folder path
-fname = 'YC_3'; % File name 
+fname = 'YC11'; % File name 
 stp = 1; % Start frame number
-smp = 1713; % End frame number
+smp = 228; % End frame number
 specific = []; % Frames to change
 
 % Bleach options
-bleachYFP = 1:1713; % Bleaching range YFP (Greater than length 1 commences bleaching)
-bleachCFP = 1:1713; % Bleaching range CFP (Greater than length 1 commences bleaching)
+bleachYFP = 1:228; % Bleaching range YFP (Greater than length 1 commences bleaching)
+bleachCFP = 1:228; % Bleaching range CFP (Greater than length 1 commences bleaching)
 
 % Other Options
 register = 1; % Register image
