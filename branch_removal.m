@@ -43,7 +43,7 @@ while(length(Qbr) > 0)
         Q2m = zeros(size(Q2)); Q2m = createcircles(Q2m,[Qbc(1) Qbr(1)],20);
         Q3label = Q2m.*Q2label;
         Q3stat = regionprops(Q3label,'Orientation','Area');
-            
+        
         Q3area = [];
         for i = 1:length(Q3stat)
             Q3area = [Q3area Q3stat(i).Area];
@@ -70,7 +70,8 @@ while(length(Qbr) > 0)
                 [tmp,Q3cdi] = min(abs(Q3cdiff));
                 if (Q3cdi == Q3di(1)) Q3min = Q3di(2); end
             elseif (close_dist == 1)
-                if (Q2ci(1) == Q3di(1)) Q3min = Q3di(2); end
+                if (Q2ci(1) == Q3di(1)) Q3min = Q3di(2); 
+                end
             end
         end
         

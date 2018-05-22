@@ -3,20 +3,21 @@ close all
 
 % Path to h5 file
 path = '/Users/htv/Desktop/Background_Analysis_Results'; % Input folder path
-fname = 'YC_3'; % File name 
+fname = 'YC2'; % File name 
 stp = 1; % Start frame number
-smp = 1713; % End frame number
+smp = 308; % End frame number
 specific = []; % Frames to change
 
 % Bleach options
-bleachYFP = 1:1713; % Bleaching range YFP (Greater than length 1 commences bleaching)
-bleachCFP = 1:1713; % Bleaching range CFP (Greater than length 1 commences bleaching)
+bleachYFP = 1:308; % Bleaching range YFP (Greater than length 1 commences bleaching)
+bleachCFP = 1:308; % Bleaching range CFP (Greater than length 1 commences bleaching)
 
 % Other Options
 register = 1; % Register image
 union = 1; % Take the union of the two image masks
 mask_plot = 1; % Plot the mask and overlap
 h5_file = 1; % Save h5_file
+workspace = 1; % Save workspace
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Frame range
@@ -216,7 +217,7 @@ plot(stp:smp,Bsum(stp:smp,1),'b');
 hold on
 plot(stp:smp,Bsum(stp:smp,2),'r');
 plot(stp:smp,Bsum(stp:smp,3),'g');
-axis([stp-1 smp+1 0.5*max(Bsum(:,1)) max(Bsum(:,1))])
+axis([stp-1 smp+1 0.9*min(Bsum(:,1)) max(Bsum(:,3))*1.1])
 title('Total Number of Pixels');
 
 % Scale each channel by maximum intensity for viewing
@@ -236,7 +237,7 @@ plot(stp:smp,Mmed(stp:smp),'k*')
 plot(stp:smp,Mmin(stp:smp),'r*')
 plot(stp:smp,Mmin_prc(stp:smp),'rd')
 grid on
-axis([stp-1 smp+1 0 max(Mmax)])
+axis([stp-1 smp+1 0 max(Mmax)*1.1])
 set(gca,'YMinorTick','on')
 title('Percentiles of Ratio image');
 
@@ -269,3 +270,4 @@ if (flag) savefig(h,[pathf '_back_proc_bleach.fig']);
 else savefig(h,[pathf '_back_proc.fig']);
 end
 
+if (workspace) save([pathf '_ratio.mat']); end
