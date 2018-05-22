@@ -3,32 +3,35 @@ close all
 
 % Path to Mat file
 path = '/Users/htv/Desktop/Background_Analysis_Results'; % Input folder path
-fname = 'YC11'; % File name 
+fname = 'YC2'; % File name 
 stp = 1; % Start frame number
-smp = 120; % End frame number
+smp = 308; % End frame number
 
 % Options for analysis
-tip_plot = 1; % Video tip detection
-video_intensity = 0; % Video intensity
-frame_rate = 2; % Number of seconds per frame of input video
+tip_plot = 1; % Video tip detection; No plot = 0, Video = 1, Images = 2
+video_intensity = 1; % Video intensity
+frame_rate = 1; % Number of seconds per frame of input video
 distributions = 0;  % Show histogram of results in the end
-workspace = 0; % Save workspace
+workspace = 1; % Save workspace
 
 % Tip detection parameters
 weight = 0.02; % Distance to eliminate branches (Higher means more reliance on the tip ellipse), 0 follows only the thinned edge.
 
 % ROI options
-ROItype = 1; % No ROI = 0; Moving ROI = 1; Stationary ROI = 2
+ROItype = 3; % No ROI = 0; Moving ROI = 1; Stationary ROI = 2, Both = 3
 split = 1; % Split ROI along center line
 circle = 0; % Circle ROI as fraction of diameter
 starti = 0; % Rectangle ROI Start length / no pixelsize means percentage as a fraction of length of tube
-stopi = 4; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
-pixelsize = 0.17; % Pixel to um conversion
+stopi = 5; % Rectangle/Circle ROI Stop length / no pixelsize means percentage as a fraction of length of tube
+pixelsize = 0.075; % Pixel to um conversion
+
+startin = 20; % Second stationary ROI Rectangle ROI Start length (ONLY if ROItype = 3)
+stopin = 30; % Second stationary ROI Rectangle ROI Stop length (ONLY if ROItype = 3)
 
 % Kymo, movie and measurements options
-Cmin = 3.8; % Min pixel value
-Cmax = 6; % Max pixel value
-nkymo = 3; % Number of pixels line width average for kymograph (odd number) (0 means no kymo)
+Cmin = 3.6; % Min pixel value
+Cmax = 5; % Max pixel value
+nkymo = 7; % Number of pixels line width average for kymograph (odd number) (0 means no kymo)
 diamcutoff = 0; % In pixels if pixelsize is not given
 
 % Input ratio matrix
@@ -54,11 +57,13 @@ if (nkymo > 0 || video_intensity > 0)
     L(L<0) = 0;
     L(L>1) = 1;
     
-    %for i=stp:smp
-    %    Ld(:,:,i) = bfilter2(L(:,:,i), 5, 0.1);
-    %end
-    Ld = uint8(L.*255);
-    L = uint8(L.*255);
+    
+    for i=stp:smp
+        dos = std2(L(:,:,i))^2;
+        Ld(:,:,i) = imbilatfilt(L(:,:,i), 2*dos, 2);
+        
+    end
+        Ld = uint8(Ld.*255); % bilaterally filtered image
 end
 
 % Make a movie and output min and max intensities of the whole stack
@@ -208,7 +213,8 @@ for count = smp:-1:stp
             tip_ellipsedist = [pdist2(tip_ellipsef,tip_mid) pdist2(tip_ellipsef,tip_skel)];
             if (last_flag)            
                 tip_finaldist = [pdist2(tip_final_last,tip_mid) pdist2(tip_final_last,tip_skel)];             
-                [tmp, tip_finalpos] = min([(1-0.33)*tip_finaldist(1)+0.33*tip_ellipsedist(1) (1-0.33)*tip_finaldist(2)+0.33*tip_ellipsedist(2)]);
+                [tmp, tip_finalpos] = min([(1-0.33)*tip_finaldist(1)+0.33*tip_ellipsedist(1) ...
+                    (1-0.33)*tip_finaldist(2)+0.33*tip_ellipsedist(2)]);
             else
                 [tmp, tip_finalpos] = min(tip_ellipsedist);
             end
@@ -374,6 +380,13 @@ for count = smp:-1:stp
             start_length = abs(distctf*pixelsize - starti); [tmp startpos] = min(start_length);
             stop_length = abs(distctf*pixelsize - stopi); [tmp stoppos] = min(stop_length);
             distc_t = distc_t*pixelsize;
+            
+            if (ROItype == 3)
+                start_lengthn = abs(distctf*pixelsize - startin); [tmp startposn] = min(start_lengthn);
+                stop_lengthn = abs(distctf*pixelsize - stopin); [tmp stopposn] = min(stop_lengthn);
+                [startc1n,stopc1n] = closest_bound(total1,xctf,yctf,max(startposn,1),max(stopposn,1));
+                [startc2n,stopc2n] = closest_bound(total2,xctf,yctf,max(startposn,1),max(stopposn,1));
+            end
         end
         
         % Project ROI length onto the side curves
@@ -387,6 +400,10 @@ for count = smp:-1:stp
                 roi = vertcat(total1(startc1:stopc1,:), total2(stopc2:-1:startc2,:));
                 if (starti < distc_t) roi = vertcat(boundb(postotal2(1):postotal1(2),:),roi); end
                 F = poly2mask(roi(:,2),roi(:,1),Esize(1),Esize(2));
+                if (ROItype == 3)
+                    roin = vertcat(total1(startc1n:stopc1n,:), total2(stopc2n:-1:startc2n,:));
+                    Fn = poly2mask(roin(:,2),roin(:,1),Esize(1),Esize(2));            
+                end
             else
                 mask = zeros(Esize(1),Esize(2));
                 roi = [linectf(stoppos,1) linectf(stoppos,2)];
@@ -408,8 +425,7 @@ for count = smp:-1:stp
                 F1 = F.*poly2mask(roi1(:,2),roi1(:,1),Esize(1),Esize(2));
                 F2 = F.*poly2mask(roi2(:,2),roi2(:,1),Esize(1),Esize(2));
             end
-        end
-    
+        end 
     
         % Calculate average intensities and pixel numbers
         Fpixelnum(count) = nnz(O.*F);
@@ -426,6 +442,10 @@ for count = smp:-1:stp
             intensityM_F2(count) = sum(sum(O.*F2))/F2pixelnum(count);
             intensityB1_F2(count) = sum(sum(BT1(:,:,count).*F2))/F2pixelnum(count);
             intensityB2_F2(count) = sum(sum(BT2(:,:,count).*F2))/F2pixelnum(count);
+        end
+        if (ROItype == 3)
+            Fpixelnumn(count) = nnz(O.*Fn);
+            intensityM_Fn(count) = sum(sum(O.*Fn))/Fpixelnumn(count);
         end
         
         % Histogram of first and last frame
@@ -453,6 +473,7 @@ for count = smp:-1:stp
 
     % Diameter of tube
     diamf = diag(pdist2(xy1,xy2));
+    if (pixelsize) diamf = pixelsize*diamf; end
     diamf_avg(count) = sum(diamf)/length(diamf);
     
     % Kymograph
@@ -497,58 +518,76 @@ for count = smp:-1:stp
     Cplot(:,size(U,2)+1:end) = [];
     
     % Plot two images
-    if (tip_plot) h = figure('visible', 'off');
-    else h = figure;
-    end
-    
-    subplot(1,2,1)
-    image1 = U+S2*2+Splot*4;
-    imagesc(image1)
-    if (tip_plot) 
-        txtstr = strcat('Time(s): ',num2str((count*frame_rate)));
-        text(10,10,txtstr,'color','white')
-    end
-    
-    subplot(1,2,2)
-    image2 = U+Cplot.*2;
-    if (ROItype > 0) image2 = image2 +F*4; end
-    imagesc(image2);
-    
-    if (tip_plot)
-        txtstr = strcat('Frame: ',num2str((count)));
-        text(10,10,txtstr,'color','white')
-        frame = getframe(gcf);
-        writeVideo(V,frame);
-        close(h);
-    end
+        if (tip_plot == 1) h = figure('visible', 'off');
+        elseif (tip_plot == 2) h = figure;
+        end
+        
+        if (tip_plot > 0)
+            subplot(1,2,1)
+            image1 = U+S2*2+Splot*4;
+            imagesc(image1)
+            if (tip_plot)
+                txtstr = strcat('Time(s): ',num2str((count*frame_rate)));
+                text(10,10,txtstr,'color','white')
+            end
+
+            subplot(1,2,2)
+            image2 = U+Cplot.*2;
+            if (ROItype > 0 && ROItype < 3) image2 = image2 + F*4;
+            elseif (ROItype == 3) image2 = image2 + (F + Fn)*4;
+            end
+            imagesc(image2);
+        end
+        
+        if (tip_plot == 1)
+            txtstr = strcat('Frame: ',num2str((count)));
+            text(10,10,txtstr,'color','white')
+            frame = getframe(gcf);
+            writeVideo(V,frame);
+            close(h);
+        end
 end
 
 if (tip_plot == 1) close(V); end
 
 % Final tip movement/diameter/pixel number on a per frame basis
 figure
-subplot(3,1,1)
+if (split) nplot = 4;
+else nplot = 3;
+end
+
+subplot(nplot,1,1)
 plot(tip_final(stp:smp,2),tip_final(stp:smp,1),'b')
 axis([min(tip_final(stp:smp,2))-5  max(tip_final(stp:smp,2))+5 min(tip_final(stp:smp,1))-5 max(tip_final(stp:smp,1))+5]);
 title('Tip Final Position', 'FontSize',16);
 
-subplot(3,1,2)
+subplot(nplot,1,2)
 plot(stp:smp,diamf_avg(stp:smp),'b')
 xlabel('Frame', 'FontSize',12);
 title('Average Diameter','FontSize',16)
 axis([stp-1 smp+1 0.5*max(diamf_avg) 1.25*max(diamf_avg)])
 
-subplot(3,1,3)
+subplot(nplot,1,3)
 plot(stp:smp,intensityM(stp:smp),'k') % Ratio only
 hold on
 plot(stp:smp,intensityM_F(stp:smp),'r') % Ratio and full ROI
-if (split)
-    plot(stp:smp,intensityM_F1(stp:smp),'b*') % Ratio and split ROI 1
-    plot(stp:smp,intensityM_F2(stp:smp),'g*') % Ratio and split ROI 2
+if (ROItype == 3) 
+    plot(stp:smp,intensityM_Fn(stp:smp),'b') % Ratio and full ROI
 end
 xlabel('Frame', 'FontSize',12);
 title('Intensity Ratio', 'FontSize',16)
-axis([stp-1 smp+1 1 max(intensityM)*1.25]);
+axis([stp-1 smp+1 min(intensityM_Fn)*0.75 max(intensityM_F)*1.25]);
+
+if (split)
+    subplot(nplot,1,4)
+    plot(stp:smp,intensityM_F1(stp:smp),'b*') % Ratio and split ROI 1
+    hold on
+    plot(stp:smp,intensityM_F2(stp:smp),'g*') % Ratio and split ROI 2
+    xlabel('Frame', 'FontSize',12);
+    title('Split Ratio', 'FontSize',16)
+    axis([stp-1 smp+1 min(intensityM_F1)*0.75 max(intensityM_F1)*1.25]);
+end
+
 
 % Kymograph
 if (nkymo > 0)
@@ -579,11 +618,14 @@ if (ROItype > 0)
        
         subplot(1,3,1); 
         plot(stp:smp,F2ratio./F1ratio,'b')
+        hold on
+        if (ROItype == 3) plot(stp:smp,intensityM_F(stp:smp)./intensityM_Fn(stp:smp),'r'); end
         axis([stp-1 smp+1 0.5 2]);
-        title('Intensity ratio between split ROIs'); xlabel('Frame');
+        title('Intensity ratio between split ROIs and/or tip/shank'); xlabel('Frame');
     else
         Fratio = intensityB1_F(stp:smp)./intensityB2_F(stp:smp);
         hold on
+        if (ROItype == 3) plot(stp:smp,intensityM_F(stp:smp)./intensityM_Fn(stp:smp),'r'); end
         plot(stp:smp,Fratio,'b');
         axis([stp-1 smp+1 0.8 max(Fratio(:))*1.25]);
         title('Intensity F'); xlabel('Frame');
@@ -626,4 +668,4 @@ if (distributions == 1)
     title('Histogram B2F')
 end
 
-if (workspace) save([pathf '/' fname '_result.mat']); end
+if (workspace) save([pathf '/' fname '_track.mat']); end

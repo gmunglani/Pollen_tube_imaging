@@ -4,16 +4,15 @@ movie = [pathf '/' fname '_ratio.avi'];
 
 V = VideoWriter(movie);
 V.FrameRate = 1;
-open(V);    
+open(V);
 
 for count = 1:size(L,3)
     h = figure;
-    figure(h);
     map = colormap(jet(255));
     map = vertcat([0 0 0],map);
     disp(['Video Processing:' num2str((count+stp-1))]);
     imshow(L(:,:,count),map); 
-    txtstr = strcat('Time(s): ',num2str((count+stp-1)*timestep));
+    txtstr = strcat('Time (s): ',num2str((count+stp-1)*timestep));
     text(10,10,txtstr,'color','white')
     hcb = colorbar;
     set(hcb,'FontSize',20)
